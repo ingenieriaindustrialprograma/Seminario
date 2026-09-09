@@ -1,0 +1,11 @@
+# Dependencias y entorno
+node_modules/
+.vercel/
+.env
+.env*.local
+
+# SO y temporales
+.DS_Store
+Thumbs.db
+*.log
+scratch/

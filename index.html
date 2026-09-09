@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Plataforma profesional de análisis de ocupación, tarifas y horarios de canchas sintéticas en Pereira (Risaralda).">
+  <title>Analítica de Canchas Sintéticas | Pereira</title>
+  
+  <!-- Estilos Nativos CSS3 (Sin dependencias externas) -->
+  <link rel="stylesheet" href="./assets/CSS/main.css">
+  <link rel="stylesheet" href="./assets/CSS/components.css">
+  <link rel="stylesheet" href="./assets/CSS/responsive.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Encabezado Principal Semántico -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="header-logo-badge" aria-hidden="true">⚽</div>
+        <div class="header-titles">
+          <h1>Analítica de Canchas Sintéticas <small style="font-size: 0.75rem; color: var(--color-turf);">Pereira</small></h1>
+          <p>Monitoreo de ocupación horaria, tarifas y rentabilidad deportiva</p>
+        </div>
+      </div>
+
+      <div class="header-meta-actions">
+        <span class="status-badge-live" id="connection-status-badge">
+          <span class="pulse-dot" aria-hidden="true"></span>
+          <span id="data-source-label">Datos Locales (Pereira)</span>
+        </span>
+        <button type="button" id="btn-open-supabase-modal" class="btn btn-secondary btn-sm" aria-label="Configurar conexión con Supabase">
+          ⚙ Supabase
+        </button>
+      </div>
+    </header>
+
+    <!-- 1. Sección de KPIs de Alto Impacto -->
+    <section id="kpi-section" class="kpi-container" aria-label="Métricas Principales de Ocupación">
+      <!-- Inyectado dinámicamente mediante kpi.js -->
+    </section>
+
+    <!-- 2. Sección de Filtros Interdependientes -->
+    <section id="filters-section" class="filters-panel" aria-label="Controles y Filtros Operativos">
+      <!-- Inyectado dinámicamente mediante filters.js -->
+    </section>
+
+    <!-- 3. Sección de Visualizaciones Analíticas -->
+    <section class="charts-grid" aria-label="Gráficos de Ocupación y Formatos">
+      <!-- Mapa de Calor Semanal (SVG) -->
+      <article class="analytics-card">
+        <div class="analytics-card-header">
+          <div class="analytics-card-title">
+            <h3>Mapa de Calor Semanal de Ocupación</h3>
+            <p>Densidad de partidos por día y franja horaria (08:00 a 23:00)</p>
+          </div>
+        </div>
+        <div id="heatmap-container" class="heatmap-container">
+          <!-- Inyectado dinámicamente mediante charts.js -->
+        </div>
+      </article>
+
+      <!-- Distribución por Formato de Cancha (CSS) -->
+      <article class="analytics-card">
+        <div class="analytics-card-header">
+          <div class="analytics-card-title">
+            <h3>Distribución por Formato</h3>
+            <p>Horas ocupadas según tipo de cancha (F5, F7, F8, F11)</p>
+          </div>
+        </div>
+        <div id="format-bars-container">
+          <!-- Inyectado dinámicamente mediante charts.js -->
+        </div>
+      </article>
+    </section>
+
+    <!-- 4. Sección de Tabla Detallada -->
+    <section id="table-section" class="table-card" aria-label="Registro de Ocupación y Reservas">
+      <!-- Inyectado dinámicamente mediante table.js -->
+    </section>
+
+    <!-- Pie de Página -->
+    <footer class="app-footer">
+      <p>© 2026 Analítica Canchas Pereira. Desarrollado con HTML5, CSS3 y JavaScript nativo.</p>
+      <div class="footer-links">
+        <button type="button" id="btn-reload-data">🔄 Recargar Datos</button>
+        <button type="button" id="btn-about-app">ℹ Acerca del Sistema</button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Contenedor de Notificaciones Toast en el DOM -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <!-- Orquestador Principal JavaScript -->
+  <script type="module" src="./assets/JS/app.js"></script>
+</body>
+</html>

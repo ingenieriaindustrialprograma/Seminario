@@ -1,0 +1,92 @@
+/* ==========================================================================
+   RESPONSIVE.CSS - Adaptabilidad Multiplataforma (Mobile, Tablet, Desktop)
+   Web App de Análisis de Ocupación de Canchas Sintéticas - Pereira
+   Cumplimiento estricto con AGENTS.md: CSS3 Nativo, 0 dependencias
+   ========================================================================== */
+
+/* Tablet & Pantallas Medianas (1024px o menos) */
+@media (max-width: 1024px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .kpi-container {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .filters-controls-grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+}
+
+/* Tablets Verticales y Móviles Grandes (768px o menos) */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 1rem 0.75rem 2.5rem 0.75rem;
+    gap: 1.25rem;
+  }
+
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+  }
+
+  .header-meta-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .filters-controls-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .table-search-input {
+    max-width: 100%;
+  }
+
+  .pagination-container {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .app-footer {
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: center;
+  }
+
+  #toast-container {
+    top: 1rem;
+    left: 1rem;
+    right: 1rem;
+    max-width: none;
+  }
+}
+
+/* Móviles Pequeños (480px o menos) */
+@media (max-width: 480px) {
+  .kpi-container {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-card {
+    padding: 1rem 1.15rem;
+  }
+
+  .kpi-main-value {
+    font-size: 1.6rem;
+  }
+
+  .analytics-card, .table-card, .filters-panel {
+    padding: 1rem;
+  }
+}
