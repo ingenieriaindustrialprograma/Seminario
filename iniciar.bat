@@ -2,13 +2,16 @@
 title Analitica Canchas Pereira - Servidor Local
 cls
 echo ====================================================================
-echo   Iniciando Web App: Analitica Canchas Sinteticas (Pereira)
+echo   Web App Analitica de Ocupacion de Canchas Sinteticas (Pereira)
 echo ====================================================================
 echo.
-echo [1/2] Abriendo la aplicacion en tu navegador...
-start http://localhost:8088
+echo Iniciando servidor local en Node.js...
+echo El navegador se abrira de forma automatica en un segundo.
 echo.
-echo [2/2] Iniciando servidor local en segundo plano...
+echo --------------------------------------------------------------------
+echo Para apagar el servidor, simplemente cierra esta ventana o presiona Ctrl+C.
+echo --------------------------------------------------------------------
+echo.
 
 node "%~dp0scripts\server.js"
 
