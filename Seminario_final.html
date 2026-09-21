@@ -768,6 +768,29 @@
     40%, 80% { transform: translateX(8px); }
   }
 
+
+  /* ─── Boton de acceso por clave en navbar ─── */
+  .nav-pill-key {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .35rem .85rem; border-radius: 20px;
+    background: linear-gradient(135deg, rgba(201,131,26,.3) 0%, rgba(240,181,90,.18) 100%);
+    border: 1px solid rgba(240,181,90,.6);
+    color: var(--gold-lt); font-family: var(--sans); font-size: .78rem;
+    font-weight: 600; cursor: pointer; transition: all .2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  .nav-pill-key:hover {
+    background: linear-gradient(135deg, var(--gold) 0%, #E09428 100%);
+    color: #0D4A38; transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(201,131,26,.4);
+  }
+  .unlock-admin-link {
+    font-size: .75rem; color: var(--em-pale); text-decoration: underline;
+    cursor: pointer; opacity: .7; transition: opacity .2s; margin-top: .6rem;
+    display: inline-block;
+  }
+  .unlock-admin-link:hover { opacity: 1; color: var(--gold-lt); }
+
 </style>
 </head>
 <body>
@@ -781,6 +804,7 @@
     <a href="#hero" class="nav-pill" id="pill-inicio" onclick="if(currentPage!==1){event.preventDefault();goToModule(1);}">Inicio</a>
     <a href="#modulos" class="nav-pill" id="pill-modulos" onclick="showModuleMenu(event)">Módulos ▾</a>
     <a href="#" class="nav-pill" id="pill-biblio" onclick="event.preventDefault();goToBiblio()">Bibliografía</a>
+    <button class="nav-pill-key" onclick="openKeyAccessModal(event)" id="btn-key-access">🔑 Ingresar Clave</button>
     <div style="position:relative">
       <button class="nav-pill-download" onclick="toggleDownloadMenu(event)" id="btn-download">Descargar</button>
       <div class="dl-dropdown" id="dl-dropdown">
@@ -3566,7 +3590,7 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 // ─── SISTEMA DE GESTIÓN DE SESIONES Y CONTRASEÑAS ──────────────────
 let currentPage = 1;
 
-const MODULE_CONFIG = {
+const SESSION_PROTECTION_CONFIG = {
   1: { session: 1, date: '26 de Septiembre, 2026', labelDate: '26 Sep', title: 'Módulo I — Liderazgo de Sí Mismo' },
   2: { session: 1, date: '26 de Septiembre, 2026', labelDate: '26 Sep', title: 'Módulo II — Facilitación y Facilitador(a)' },
   3: { session: 2, date: '3 de Octubre, 2026', labelDate: '3 Octubre', title: 'Módulo III — Estilos de Facilitación y Motivación' },
@@ -3600,7 +3624,7 @@ function saveUnlockedSessions(sessions) {
 }
 
 function isModuleUnlocked(num) {
-  const conf = MODULE_CONFIG[num];
+  const conf = SESSION_PROTECTION_CONFIG[num];
   if (!conf || conf.session === 1) return true;
   const unlocked = getUnlockedSessions();
   return unlocked.includes(conf.session) || unlocked.includes('all');
@@ -3609,7 +3633,7 @@ function isModuleUnlocked(num) {
 function updateLockUI() {
   for (let num = 1; num <= 6; num++) {
     const unlocked = isModuleUnlocked(num);
-    const conf = MODULE_CONFIG[num];
+    const conf = SESSION_PROTECTION_CONFIG[num];
 
     const cardEl = document.getElementById('mod-card-' + num);
     const badgeEl = document.getElementById('mod-badge-' + num);
@@ -3641,9 +3665,60 @@ function updateLockUI() {
 
 let pendingModuleToOpen = null;
 
+
+function openKeyAccessModal(e) {
+  if (e) e.preventDefault();
+  pendingModuleToOpen = null;
+  document.getElementById('unlockModalTitle').textContent = 'Acceso con Contraseña';
+  document.getElementById('unlockModalBadge').innerHTML = '📅 Sesión 2 (3 Oct) · Sesión 3 (10 Oct)';
+  document.getElementById('unlockModalDesc').textContent = 
+    'Ingresa la contraseña de tu sesión para desbloquear los módulos correspondientes, o la clave maestra para habilitar todo el seminario.';
+  
+  const input = document.getElementById('unlockPasswordInput');
+  input.value = '';
+  input.type = 'password';
+  setUnlockMessage('', '');
+  
+  document.getElementById('adminCustomKeysPanel').style.display = 'none';
+  document.getElementById('unlockModal').classList.add('active');
+  setTimeout(() => input.focus(), 150);
+}
+
+function toggleAdminCustomKeys() {
+  const panel = document.getElementById('adminCustomKeysPanel');
+  const isHidden = panel.style.display === 'none';
+  panel.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) {
+    const customKeys = getCustomKeys();
+    document.getElementById('customKeySession2').value = customKeys.session_2 || '';
+    document.getElementById('customKeySession3').value = customKeys.session_3 || '';
+  }
+}
+
+function getCustomKeys() {
+  try {
+    const raw = localStorage.getItem('gth_custom_passwords');
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return {};
+}
+
+function saveCustomSessionKeys() {
+  const k2 = document.getElementById('customKeySession2').value.trim();
+  const k3 = document.getElementById('customKeySession3').value.trim();
+  const obj = {};
+  if (k2) obj.session_2 = k2;
+  if (k3) obj.session_3 = k3;
+  localStorage.setItem('gth_custom_passwords', JSON.stringify(obj));
+  setUnlockMessage('✓ Contraseñas personalizadas guardadas con éxito.', 'success');
+  setTimeout(() => {
+    document.getElementById('adminCustomKeysPanel').style.display = 'none';
+  }, 1000);
+}
+
 function showUnlockModal(num) {
   pendingModuleToOpen = num;
-  const conf = MODULE_CONFIG[num] || { session: 2, date: '3 de Octubre', title: 'Módulo Protegido' };
+  const conf = SESSION_PROTECTION_CONFIG[num] || { session: 2, date: '3 de Octubre', title: 'Módulo Protegido' };
 
   document.getElementById('unlockModalTitle').textContent = conf.title;
   document.getElementById('unlockModalBadge').innerHTML = '📅 Sesión ' + conf.session + ' · ' + conf.date;
@@ -3674,8 +3749,9 @@ function handleUnlockOverlayClick(e) {
   }
 }
 
-function togglePasswordVisibility() {
-  const input = document.getElementById('unlockPasswordInput');
+function togglePasswordVisibility(targetId) {
+  const id = targetId || 'unlockPasswordInput';
+  const input = document.getElementById(id);
   input.type = input.type === 'password' ? 'text' : 'password';
 }
 
@@ -3712,10 +3788,23 @@ async function submitUnlockPassword(e) {
   submitBtn.textContent = 'Verificando...';
 
   const modNum = pendingModuleToOpen || 3;
-  const conf = MODULE_CONFIG[modNum] || { session: 2 };
+  const conf = SESSION_PROTECTION_CONFIG[modNum] || { session: 2 };
   let unlockSuccess = false;
   let unlockedSessionsToAdd = [];
   let successMsg = '';
+
+  
+  // Revisar si el docente configuró claves personalizadas en esta página
+  const customKeys = getCustomKeys();
+  if (customKeys.session_2 && password === customKeys.session_2) {
+    unlockSuccess = true;
+    unlockedSessionsToAdd = [2];
+    successMsg = 'Sesión 2 (Módulos III y IV) desbloqueada.';
+  } else if (customKeys.session_3 && password === customKeys.session_3) {
+    unlockSuccess = true;
+    unlockedSessionsToAdd = [3];
+    successMsg = 'Sesión 3 (Módulos V y VI) desbloqueada.';
+  }
 
   // 1. Validar en API externa de Vercel (/api/verify-password)
   try {
@@ -4303,7 +4392,7 @@ document.addEventListener('click', function() {
 });
 
 // Map module number → page id + bibliography section ids
-var MODULE_CONFIG = {
+var DOWNLOAD_CONFIG = {
   0: { pageId: null,     bibSections: [],           label: 'Inicio',         filename: 'GTH_Inicio' },
   1: { pageId: 'page-1', bibSections: ['bib-mod1'], label: 'Módulo I',       filename: 'GTH_ModuloI_Introduccion' },
   2: { pageId: 'page-2', bibSections: ['bib-mod2'], label: 'Módulo II',      filename: 'GTH_ModuloII_Facilitacion' },
@@ -4333,7 +4422,7 @@ function buildModuleHTML(modNum) {
       bodyParts.push(el.outerHTML);
     }
   } else {
-    var cfg = MODULE_CONFIG[modNum];
+    var cfg = DOWNLOAD_CONFIG[modNum];
 
     // 2. Module page content
     var pageEl = cfg.pageId ? document.getElementById(cfg.pageId) : null;
@@ -4379,32 +4468,7 @@ function buildModuleHTML(modNum) {
   var extraStyle = '<style>.page{display:block!important;}.reveal{opacity:1!important;transform:none!important;}.dl-dropdown{display:none!important;}.nav-progress{display:none!important;}nav{position:relative!important;top:auto!important;}body{padding-top:0!important;}</style>';
 
   var html = '<!DOCTYPE html><html lang="es"><head>' + headContent + extraStyle + '</head><body>' +
-    bodyParts.join('\n') + shimScript + '
-<!-- MODAL DE DESBLOQUEO CON CONTRASEÑA -->
-<div id="unlockModal" class="unlock-modal-overlay" onclick="handleUnlockOverlayClick(event)">
-  <div class="unlock-modal-card" id="unlockModalCard">
-    <div class="unlock-modal-glow"></div>
-    <div class="unlock-icon-wrap">🔒</div>
-    <h3 class="unlock-title" id="unlockModalTitle">Módulo Protegido</h3>
-    <div class="unlock-badge" id="unlockModalBadge">📅 Sesión 2 · 3 de Octubre, 2026</div>
-    <p class="unlock-desc" id="unlockModalDesc">
-      Este contenido está reservado para la fecha programada. Si asistes a esta sesión, ingresa la contraseña suministrada por el docente para desbloquear el módulo.
-    </p>
-    <form id="unlockForm" onsubmit="submitUnlockPassword(event)">
-      <div class="unlock-input-wrap">
-        <input type="password" id="unlockPasswordInput" class="unlock-input" placeholder="Ingresa la contraseña de la sesión..." autocomplete="off" />
-        <button type="button" class="unlock-input-toggle" onclick="togglePasswordVisibility()" title="Mostrar u ocultar contraseña">👁️</button>
-      </div>
-      <div id="unlockMsg" class="unlock-msg"></div>
-      <div class="unlock-btn-row">
-        <button type="button" class="unlock-btn-cancel" onclick="closeUnlockModal()">Cancelar</button>
-        <button type="submit" class="unlock-btn-submit" id="unlockSubmitBtn">Desbloquear</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-</body></html>';
+    bodyParts.join('\n') + shimScript + '</body></html>';
 
   return html;
 }
@@ -4428,7 +4492,7 @@ function downloadModule(modNum) {
     var extraStyle = '<style>.page{display:block!important;}.reveal{opacity:1!important;transform:none!important;}.dl-dropdown{display:none!important;}</style>';
     html = '<!DOCTYPE html><html lang="es"><head>' + document.head.innerHTML + extraStyle + '</head><body>' + document.body.innerHTML + '</body></html>';
   } else {
-    var cfg = MODULE_CONFIG[modNum];
+    var cfg = SESSION_PROTECTION_CONFIG[modNum];
     if (!cfg) return;
     filename = cfg.filename;
     html = buildModuleHTML(modNum);
@@ -4600,5 +4664,53 @@ document.addEventListener("DOMContentLoaded",function(){
   document.querySelectorAll(".reveal").forEach(function(el){el.classList.add("visible");});
 });
 </script></template>
+
+<!-- MODAL DE DESBLOQUEO Y GESTIÓN DE CONTRASEÑA -->
+<div id="unlockModal" class="unlock-modal-overlay" onclick="handleUnlockOverlayClick(event)">
+  <div class="unlock-modal-card" id="unlockModalCard">
+    <div class="unlock-modal-glow"></div>
+    <div class="unlock-icon-wrap" id="unlockModalIcon">🔒</div>
+    <h3 class="unlock-title" id="unlockModalTitle">Acceso con Contraseña</h3>
+    <div class="unlock-badge" id="unlockModalBadge">📅 Sesiones 2 y 3 Protegidas</div>
+    <p class="unlock-desc" id="unlockModalDesc">
+      Ingresa la contraseña suministrada por el docente para desbloquear los módulos de la fecha correspondiente (3 de Octubre o 10 de Octubre).
+    </p>
+
+    <!-- Formulario para ingresar clave -->
+    <form id="unlockForm" onsubmit="submitUnlockPassword(event)">
+      <div class="unlock-input-wrap">
+        <input type="password" id="unlockPasswordInput" class="unlock-input" placeholder="Ingresa la contraseña..." autocomplete="off" />
+        <button type="button" class="unlock-input-toggle" onclick="togglePasswordVisibility('unlockPasswordInput')" title="Mostrar u ocultar contraseña">👁️</button>
+      </div>
+      <div id="unlockMsg" class="unlock-msg"></div>
+      <div class="unlock-btn-row">
+        <button type="button" class="unlock-btn-cancel" onclick="closeUnlockModal()">Cancelar</button>
+        <button type="submit" class="unlock-btn-submit" id="unlockSubmitBtn">Desbloquear</button>
+      </div>
+    </form>
+
+    <div style="text-align:center;margin-top:.8rem;">
+      <span class="unlock-admin-link" onclick="toggleAdminCustomKeys()">⚙️ ¿Eres docente? Personalizar o cambiar claves</span>
+    </div>
+
+    <!-- Panel opcional para que el docente pueda definir/cambiar claves desde la misma página -->
+    <div id="adminCustomKeysPanel" style="display:none;margin-top:1.2rem;padding-top:1rem;border-top:1px dashed rgba(200,237,226,.25)">
+      <div style="font-size:.8rem;color:var(--gold-lt);font-weight:600;margin-bottom:.5rem">Personalizar contraseñas en este navegador:</div>
+      <div style="margin-bottom:.6rem">
+        <label style="font-size:.72rem;color:var(--em-pale);display:block;margin-bottom:.2rem">Clave Sesión 2 (Mód 3 y 4 - 3 Oct):</label>
+        <input type="text" id="customKeySession2" class="unlock-input" style="padding:.5rem .8rem;font-size:.85rem" placeholder="Ej: gth-oct3" />
+      </div>
+      <div style="margin-bottom:.8rem">
+        <label style="font-size:.72rem;color:var(--em-pale);display:block;margin-bottom:.2rem">Clave Sesión 3 (Mód 5 y 6 - 10 Oct):</label>
+        <input type="text" id="customKeySession3" class="unlock-input" style="padding:.5rem .8rem;font-size:.85rem" placeholder="Ej: gth-oct10" />
+      </div>
+      <div class="unlock-btn-row">
+        <button type="button" class="unlock-btn-cancel" style="padding:.5rem .8rem;font-size:.8rem" onclick="toggleAdminCustomKeys()">Cerrar</button>
+        <button type="button" class="unlock-btn-submit" style="padding:.5rem .8rem;font-size:.8rem" onclick="saveCustomSessionKeys()">Guardar Claves</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
