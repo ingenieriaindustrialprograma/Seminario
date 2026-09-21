@@ -1,0 +1,14 @@
+# Secretos y contraseñas fuera del control de versiones público
+passwords.json
+.env
+.env.local
+.env.*.local
+
+# Dependencias y compilación
+node_modules/
+.vercel/
+
+# Archivos de sistema y logs
+.DS_Store
+Thumbs.db
+*.log
