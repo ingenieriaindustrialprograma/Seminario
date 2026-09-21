@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="100%" height="100%" fill="none">
+    <circle cx="40" cy="40" r="38" fill="url(#gradMod5)" stroke="#B87414" stroke-width="2"/>
+    <rect x="25" y="25" width="30" height="30" rx="8" fill="rgba(247,196,117,0.2)" stroke="#F7C475" stroke-width="2"/>
+    <circle cx="40" cy="40" r="7" fill="#F7C475"/>
+    <path d="M40 18v7M40 55v7M18 40h7M55 40h7" stroke="#F7C475" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="40" cy="18" r="2" fill="#FFF"/>
+    <circle cx="40" cy="62" r="2" fill="#FFF"/>
+    <circle cx="18" cy="40" r="2" fill="#FFF"/>
+    <circle cx="62" cy="40" r="2" fill="#FFF"/>
+    <path d="M28 28l4 4M48 48l4 4M28 52l4-4M48 32l4-4" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>
+    <defs>
+      <radialGradient id="gradMod5" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#1E8560"/>
+        <stop offset="100%" stop-color="#0B3B2D"/>
+      </radialGradient>
+    </defs>
+  </svg>
