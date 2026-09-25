@@ -1,54 +1,71 @@
+// Servidor local que reproduce el sitio publicado en Vercel:
+//   - sirve solo los archivos de public/ (igual que Vercel)
+//   - responde /api/modulos con la misma función que se publica
+//
+// Uso:
+//   npm start                                  → fecha y hora reales
+//   FECHA=2026-10-03 npm start                 → simula esa fecha (hora de Colombia)
+//   CLAVE_DOCENTE=una-clave-larga npm start    → permite probar el acceso docente (/?docente)
+// En Windows (cmd):  set FECHA=2026-10-03 && npm start
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const verifyPassword = require('./api/verify-password');
 
-const PORT = 3000;
+if (process.env.FECHA) {
+  const fecha = process.env.FECHA.trim();
+  process.env.SEMINARIO_FECHA_SIMULADA =
+    /^\d{4}-\d{2}-\d{2}$/.test(fecha) ? fecha + 'T00:00:00-05:00' :
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(fecha) ? fecha + '-05:00' :
+    fecha;
+}
+
+const modulos = require('./api/modulos');
+
+const PORT = Number(process.env.PORT) || 3000;
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const mimeTypes = {
+  '.html': 'text/html; charset=utf-8',
+  '.json': 'application/json',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png'
+};
 
 const server = http.createServer(async (req, res) => {
-  const parsedUrl = new URL(req.url, `http://localhost:${PORT}`);
-  const pathname = parsedUrl.pathname;
+  const pathname = new URL(req.url, `http://localhost:${PORT}`).pathname;
 
-  if (pathname.startsWith('/api/verify-password')) {
-    let body = '';
-    req.on('data', chunk => { body += chunk; });
-    req.on('end', async () => {
-      req.body = body;
-      const mockRes = {
-        statusCode: 200,
-        headers: {},
-        setHeader(k, v) { this.headers[k] = v; res.setHeader(k, v); },
-        status(code) { this.statusCode = code; res.statusCode = code; return this; },
-        json(data) {
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify(data));
-        },
-        end() { res.end(); }
-      };
-      await verifyPassword(req, mockRes);
-    });
+  if (pathname === '/api/modulos') {
+    await modulos(req, res);
+    return;
+  }
+  if (pathname.startsWith('/api/')) {
+    res.writeHead(404);
+    res.end('No encontrado');
     return;
   }
 
-  // Serve static files
-  let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
-  if (!fs.existsSync(filePath)) {
-    filePath = path.join(__dirname, 'index.html');
+  // Archivos estáticos, siempre dentro de public/
+  let filePath;
+  try {
+    filePath = path.join(PUBLIC_DIR, decodeURIComponent(pathname));
+  } catch (err) {
+    res.writeHead(400);
+    res.end('Ruta inválida');
+    return;
   }
-
-  const ext = path.extname(filePath);
-  const mimeTypes = {
-    '.html': 'text/html; charset=utf-8',
-    '.json': 'application/json',
-    '.js': 'text/javascript',
-    '.css': 'text/css',
-    '.svg': 'image/svg+xml',
-    '.png': 'image/png'
-  };
+  if (filePath !== PUBLIC_DIR && !filePath.startsWith(PUBLIC_DIR + path.sep)) {
+    res.writeHead(403);
+    res.end('Prohibido');
+    return;
+  }
+  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    filePath = path.join(PUBLIC_DIR, 'index.html');
+  }
 
   try {
     const data = fs.readFileSync(filePath);
-    res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'text/plain' });
+    res.writeHead(200, { 'Content-Type': mimeTypes[path.extname(filePath)] || 'text/plain' });
     res.end(data);
   } catch (err) {
     res.writeHead(500);
@@ -57,5 +74,11 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Test server running at http://localhost:${PORT}`);
+  console.log(`Seminario en http://localhost:${PORT}`);
+  if (process.env.SEMINARIO_FECHA_SIMULADA) {
+    console.log(`Fecha simulada: ${process.env.SEMINARIO_FECHA_SIMULADA}`);
+  }
+  if (process.env.CLAVE_DOCENTE) {
+    console.log(`Acceso docente: http://localhost:${PORT}/?docente`);
+  }
 });

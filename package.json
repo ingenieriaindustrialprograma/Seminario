@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "Seminario Especializado MBA UTP - Liderazgo y Gestión del Talento Humano",
   "scripts": {
-    "start": "node dev-server.js"
+    "construir": "node scripts/construir.js",
+    "start": "node scripts/construir.js && node dev-server.js"
   },
   "keywords": ["seminario", "mba", "utp", "liderazgo", "gth"],
   "author": "UTP Pereira",

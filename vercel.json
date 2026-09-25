@@ -1,15 +1,18 @@
 {
-  "name": "seminario",
-  "version": 2,
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "public",
   "cleanUrls": true,
-  "routes": [
+  "functions": {
+    "api/modulos.js": {
+      "includeFiles": "api/_contenido/**"
+    }
+  },
+  "headers": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/",
-      "dest": "/index.html"
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0" }
+      ]
     }
   ]
 }
