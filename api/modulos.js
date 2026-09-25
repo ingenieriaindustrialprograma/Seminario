@@ -28,6 +28,10 @@ const CONTENIDO = {
 
 const LONGITUD_MINIMA_CLAVE = 10;
 
+// Clave de la docente (su correo), guardada solo como huella SHA-256: el correo no aparece en el
+// código. Se compara sin distinguir mayúsculas. CLAVE_DOCENTE en Vercel sigue funcionando además.
+const HUELLA_CLAVE_DOCENTE = '976b77c1ab98db002b4bfaf03ad4eee4deee254e8f96a9cca897f7a41daa5bb9';
+
 function ahora() {
   // Solo para pruebas locales con dev-server.js; en Vercel siempre se usa la hora real.
   const simulada = process.env.SEMINARIO_FECHA_SIMULADA;
@@ -38,10 +42,19 @@ function ahora() {
   return Date.now();
 }
 
-function claveDocenteCorrecta(recibida, configurada) {
-  const a = crypto.createHash('sha256').update(String(recibida)).digest();
-  const b = crypto.createHash('sha256').update(String(configurada)).digest();
-  return crypto.timingSafeEqual(a, b);
+function sha256(texto) {
+  return crypto.createHash('sha256').update(String(texto)).digest();
+}
+
+function claveDocenteCorrecta(recibida) {
+  const configurada = process.env.CLAVE_DOCENTE || '';
+  const porVariable = configurada.length >= LONGITUD_MINIMA_CLAVE &&
+    crypto.timingSafeEqual(sha256(recibida), sha256(configurada));
+  const porHuella = crypto.timingSafeEqual(
+    sha256(String(recibida).trim().toLowerCase()),
+    Buffer.from(HUELLA_CLAVE_DOCENTE, 'hex')
+  );
+  return porVariable || porHuella;
 }
 
 function responder(res, estado, cuerpo) {
@@ -60,14 +73,7 @@ module.exports = async (req, res) => {
   let docente = false;
   const claveRecibida = req.headers['x-clave-docente'];
   if (claveRecibida) {
-    const configurada = process.env.CLAVE_DOCENTE || '';
-    if (configurada.length < LONGITUD_MINIMA_CLAVE) {
-      return responder(res, 403, {
-        error: 'acceso_docente_deshabilitado',
-        mensaje: `El acceso docente no está habilitado: falta configurar CLAVE_DOCENTE (mínimo ${LONGITUD_MINIMA_CLAVE} caracteres) en Vercel.`
-      });
-    }
-    if (!claveDocenteCorrecta(claveRecibida, configurada)) {
+    if (!claveDocenteCorrecta(claveRecibida)) {
       await new Promise((resolver) => setTimeout(resolver, 1000)); // frena intentos por fuerza bruta
       return responder(res, 401, { error: 'clave_incorrecta', mensaje: 'Clave docente incorrecta.' });
     }

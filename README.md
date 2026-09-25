@@ -19,13 +19,12 @@ Sitio del seminario, publicado en Vercel: https://seminario-wine.vercel.app
 
 ## Acceso docente (ver todo antes de la fecha)
 
-1. En Vercel → proyecto → **Settings → Environment Variables**, crea `CLAVE_DOCENTE` con una clave
-   larga (mínimo 10 caracteres) y vuelve a desplegar (**Deployments → Redeploy**).
-2. Abre `https://seminario-wine.vercel.app/?docente` e ingresa la clave. Ese navegador queda en
-   "Modo docente" (todos los módulos y descargas) hasta pulsar **Salir**.
+Abre `https://seminario-wine.vercel.app/?docente` e ingresa la clave de la docente (su correo
+institucional; en el código solo está su huella SHA-256 en `api/modulos.js`, `HUELLA_CLAVE_DOCENTE`).
+Ese navegador queda en "Modo docente" (todos los módulos y descargas) hasta pulsar **Salir**.
 
-Los estudiantes no ven ningún botón de clave, y la clave nunca está en el código: se valida en el
-servidor. Sin `CLAVE_DOCENTE`, el acceso docente queda deshabilitado.
+Opcionalmente se puede definir otra clave en Vercel → Settings → Environment Variables →
+`CLAVE_DOCENTE` (mínimo 10 caracteres); ambas funcionan. Los estudiantes no ven ningún botón de clave.
 
 ## Estructura
 
