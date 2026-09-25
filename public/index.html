@@ -402,19 +402,33 @@
   .eval-body { background: var(--white); padding: 1.4rem; flex: 1; }
   .eval-name { font-family: var(--serif); font-size: 1.1rem; font-weight: 700; color: var(--em-dark); margin-bottom: .5rem; }
   .eval-text { font-size: .85rem; color: var(--mid); line-height: 1.65; }
-  .eval-list { list-style: none; counter-reset: eval; display: grid; gap: .7rem; }
-  .eval-list li {
-    counter-increment: eval; position: relative; padding-left: 2.1rem;
-    font-size: .85rem; color: var(--mid); line-height: 1.6;
+  .eval-more {
+    margin-top: .9rem; background: none; border: 1px solid var(--em-light); color: var(--em);
+    border-radius: 20px; padding: .35rem .95rem; font-family: var(--sans); font-size: .78rem;
+    font-weight: 600; cursor: pointer; transition: all .2s ease;
   }
-  .eval-list li::before {
-    content: counter(eval); position: absolute; left: 0; top: .05rem;
-    width: 1.5rem; height: 1.5rem; border-radius: 50%;
-    background: var(--em-mid); color: var(--white);
-    font-family: var(--serif); font-size: .78rem; font-weight: 700;
+  .eval-more:hover { background: var(--em); border-color: var(--em); color: var(--white); }
+  /* Ventana con el detalle de las actividades evaluadas */
+  #evalModal .unlock-modal-card { max-width: 580px; max-height: 88vh; overflow-y: auto; }
+  .eval-modal-close {
+    position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,.08);
+    border: 1px solid rgba(200,237,226,.2); color: var(--em-pale); border-radius: 50%;
+    width: 34px; height: 34px; cursor: pointer; font-size: .95rem;
+  }
+  .eval-modal-close:hover { background: rgba(255,255,255,.18); color: var(--white); }
+  .eval-activities { list-style: none; counter-reset: act; display: grid; gap: .8rem; margin-top: .4rem; }
+  .eval-activities li {
+    counter-increment: act; position: relative; padding: .85rem 1rem .85rem 3.1rem;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(200,237,226,.12); border-radius: 14px;
+    font-family: var(--sans); font-size: .86rem; line-height: 1.6; color: rgba(200,237,226,.88);
+  }
+  .eval-activities li::before {
+    content: counter(act); position: absolute; left: 1rem; top: .9rem;
+    width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--gold); color: #0D4A38;
+    font-family: var(--serif); font-weight: 700; font-size: .85rem;
     display: flex; align-items: center; justify-content: center;
   }
-  .eval-list strong { color: var(--em-dark); }
+  .eval-activities strong { display: block; color: var(--gold-lt); font-size: .92rem; margin-bottom: .15rem; }
 
   /* ═══════════════════════════════════════
      INTERACTIVE EXPAND CARDS
@@ -1194,12 +1208,8 @@
         </div>
         <div class="eval-body">
           <div class="eval-name">Exposiciones</div>
-          <ol class="eval-list">
-            <li><strong>Presentaciones de tendencias:</strong> exposición de las tendencias asignadas a cada grupo de trabajo y banco de preguntas.</li>
-            <li><strong>Diagnóstico de Capital Humano:</strong> analiza una organización real (propia o conocida). ¿En cuál de las dos tendencias que les corresponden es más fuerte? ¿En cuál más débil? ¿Cómo impacta eso en su competitividad?</li>
-            <li><strong>Estrategia de Retención:</strong> identifica a una persona clave en tu equipo o entorno. ¿Qué la haría quedarse otros 3 años? Diseña los elementos de una propuesta de valor personalizada para esa persona.</li>
-            <li><strong>Cultura Vivida:</strong> describe una situación reciente en la que la cultura de tu organización se manifestó con claridad, de forma positiva o negativa. ¿Qué reveló sobre los valores reales (no declarados) de la organización?</li>
-          </ol>
+          <div class="eval-text">Presentaciones y talleres aplicados sobre las tendencias asignadas a cada grupo.</div>
+          <button type="button" class="eval-more" onclick="openEvalModal()">Ver actividades →</button>
         </div>
       </div>
     </div>
@@ -2570,6 +2580,18 @@ async function submitTeacherKey(e) {
   }
 }
 
+function openEvalModal() {
+  document.getElementById('evalModal').classList.add('active');
+}
+
+function closeEvalModal() {
+  document.getElementById('evalModal').classList.remove('active');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeEvalModal();
+});
+
 function exitTeacherMode() {
   clearStoredTeacherKey();
   location.reload();
@@ -3179,6 +3201,23 @@ document.addEventListener("DOMContentLoaded",function(){
   document.querySelectorAll(".reveal").forEach(function(el){el.classList.add("visible");});
 });
 </script></template>
+
+<!-- VENTANA: ACTIVIDADES DE EXPOSICIONES (40%) -->
+<div id="evalModal" class="unlock-modal-overlay" onclick="if (event.target === this) closeEvalModal()">
+  <div class="unlock-modal-card">
+    <div class="unlock-modal-glow"></div>
+    <button type="button" class="eval-modal-close" onclick="closeEvalModal()" aria-label="Cerrar">✕</button>
+    <div class="unlock-icon-wrap">🎤</div>
+    <h3 class="unlock-title">Exposiciones</h3>
+    <div class="unlock-badge">📊 40% de la nota</div>
+    <ol class="eval-activities">
+      <li><strong>Presentaciones de tendencias</strong>Exposición de las tendencias asignadas a cada grupo de trabajo y banco de preguntas.</li>
+      <li><strong>Diagnóstico de Capital Humano</strong>Analiza una organización real (propia o conocida). ¿En cuál de las dos tendencias que les corresponden es más fuerte? ¿En cuál más débil? ¿Cómo impacta eso en su competitividad?</li>
+      <li><strong>Estrategia de Retención</strong>Identifica a una persona clave en tu equipo o entorno. ¿Qué la haría quedarse otros 3 años? Diseña los elementos de una propuesta de valor personalizada para esa persona.</li>
+      <li><strong>Cultura Vivida</strong>Describe una situación reciente en la que la cultura de tu organización se manifestó con claridad, de forma positiva o negativa. ¿Qué reveló sobre los valores reales (no declarados) de la organización?</li>
+    </ol>
+  </div>
+</div>
 
 <!-- MODAL: MÓDULO AÚN NO DISPONIBLE / ACCESO DOCENTE -->
 <div id="unlockModal" class="unlock-modal-overlay" onclick="handleUnlockOverlayClick(event)">
