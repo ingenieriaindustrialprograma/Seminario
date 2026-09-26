@@ -270,6 +270,56 @@ function textosDeLaPagina(page, n) {
   await page.waitForTimeout(800);
   check(await page.evaluate(() => document.documentElement.classList.contains('presenting')), '?presentar abre en modo presentación');
 
+  // Paletas de color: todo texto de cada página cumple contraste AA (≥ 4.5:1) con su fondo.
+  // Se omiten los emoji (glifos de color) que no son texto.
+  await page.goto(FUENTE, { waitUntil: 'load' });
+  await page.waitForTimeout(800);
+  const paletas = await page.evaluate(() => PALETTES.filter(p => p.id !== 'original').map(p => p.id));
+  for (const paleta of paletas) {
+    const bajos = [];
+    for (const n of [1, 2, 3, 4, 5, 6, 7]) {
+      await page.evaluate((n) => (n === 7 ? goToBiblio() : navigateToModuleDirect(n)), n);
+      await page.waitForTimeout(500);
+      await page.evaluate((x) => { startPresentation(true); setPalette(x); }, paleta);
+      await page.waitForTimeout(250);
+      bajos.push(...await page.evaluate(() => {
+        const P = (s) => { const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/.exec(s || ''); return m ? { r: +m[1], g: +m[2], b: +m[3], a: m[4] === undefined ? 1 : +m[4] } : null; };
+        const L = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+        const mix = (t, b) => ({ r: t.r * t.a + b.r * (1 - t.a), g: t.g * t.a + b.g * (1 - t.a), b: t.b * t.a + b.b * (1 - t.a), a: 1 });
+        const fondo = (el) => {
+          const capas = [];
+          for (let a = el; a; a = a.parentElement) {
+            const cs = getComputedStyle(a);
+            if (cs.backgroundImage.includes('gradient')) {
+              const st = (cs.backgroundImage.match(/rgba?\([^)]+\)/g) || []).map(P).filter((c) => c && c.a >= 0.6);
+              if (st.length) { capas.push({ r: st.reduce((s, c) => s + c.r, 0) / st.length, g: st.reduce((s, c) => s + c.g, 0) / st.length, b: st.reduce((s, c) => s + c.b, 0) / st.length, a: 1 }); break; }
+            }
+            const c = P(cs.backgroundColor);
+            if (c && c.a > 0) { capas.push(c); if (c.a >= 0.95) break; }
+          }
+          let r = { r: 255, g: 255, b: 255, a: 1 };
+          for (let i = capas.length - 1; i >= 0; i--) r = mix(capas[i], r);
+          return r;
+        };
+        const out = [];
+        for (const el of document.querySelectorAll('#presentWindow .page *')) {
+          const txt = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim();
+          if (txt.length < 2 || /^[\p{Extended_Pictographic}\uFE0F\s]+$/u.test(txt)) continue;
+          const r = el.getBoundingClientRect();
+          const cs = getComputedStyle(el);
+          if (!r.width || !r.height || cs.visibility === 'hidden' || +cs.opacity === 0) continue;
+          const bg = fondo(el);
+          const fg = mix(P(cs.color), bg);
+          const ratio = (Math.max(L(fg), L(bg)) + 0.05) / (Math.min(L(fg), L(bg)) + 0.05);
+          if (ratio < 4.5) out.push(ratio.toFixed(2) + ' «' + txt.slice(0, 40) + '»');
+        }
+        return out;
+      }));
+      await page.evaluate(() => stopPresentation());
+    }
+    check(bajos.length === 0, `paleta ${paleta}: todos los textos con contraste ≥ 4.5:1` + (bajos.length ? ' — ' + bajos.slice(0, 4).join(' | ') : ''));
+  }
+
   await browser.close();
   console.log(fallos ? `\n✗ ${fallos} verificación(es) fallaron` : '\n✓ Todas las verificaciones pasaron');
   process.exit(fallos ? 1 : 0);

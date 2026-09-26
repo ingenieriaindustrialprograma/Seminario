@@ -834,14 +834,51 @@
      Las clases pm-* las asigna applyProjectorTheme() solo a lo que era oscuro.
   ═══════════════════════════════════════ */
   .nav-pill-projector { background: none; font-family: var(--sans); }
-  html.projector { zoom: var(--pm-scale, 1.35); --mid: #2F4A41; --body: #17302A; --gold: #9A5800; --em-mid: #1B7C58; --em-light: #1F8A63; }
-  html.projector nav .nav-pill-projector { background: var(--gold); color: #0D4A38; border-color: var(--gold); }
-  html.projector .pm-bg { background: linear-gradient(160deg, #F8FCFA 0%, #E4F3EC 100%) !important; }
-  html.projector .pm-card { background: #FFFFFF !important; border-color: #B9DDCF !important; box-shadow: 0 2px 10px rgba(13,74,56,.08) !important; }
-  html.projector .pm-ink { color: #12352A !important; }
-  html.projector .pm-accent { color: #0E6A4D !important; }
-  html.projector .pm-gold { color: #8A5300 !important; }
-  html.projector .quote-author { color: #8A5300; }
+  html.projector { zoom: var(--pm-scale, 1.35); }
+  html.presenting { zoom: 1 !important; }
+  /* ── Paletas (solo con colores claros de proyector/presentación). Todas: fondo claro, texto
+     oscuro y acentos con contraste AA (≥ 4.5:1) verificado por pruebas. ── */
+  html.projector {
+    --mid: #2F4A41; --body: #17302A; --gold: #9A5800; --em-mid: #1B7C58; --em-light: #1F8A63;
+    --pm-s1: #F8FCFA; --pm-s2: #E4F3EC; --pm-ink: #12352A; --pm-accent: #0E6A4D; --pm-gold: #8A5300;
+    --pm-border: #B9DDCF; --pm-band: #0D4A38;
+  }
+  html.projector[data-palette="azul"] {
+    --em: #1D4E89; --em-dark: #0F2F57; --em-mid: #245C9E; --em-light: #2B67AE; --em-pale: #CFDFF3; --em-ghost: #EDF3FA;
+    --gold: #A04A00; --gold-lt: #F2B36A; --gold-pale: #FCE9D2; --cream: #F7F9FC; --body: #14233A; --mid: #34465E;
+    --pm-s1: #F8FAFD; --pm-s2: #E2EBF6; --pm-ink: #10223D; --pm-accent: #1D4E89; --pm-gold: #8A3F00; --pm-border: #BDD0EA; --pm-band: #0F2F57;
+  }
+  html.projector[data-palette="vino"] {
+    --em: #8C1D40; --em-dark: #5A0F27; --em-mid: #9C2A4E; --em-light: #A33358; --em-pale: #F2D4DE; --em-ghost: #FBEFF3;
+    --gold: #7A5500; --gold-lt: #E9C46A; --gold-pale: #F6EBCC; --cream: #FCF8F9; --body: #3A0D1C; --mid: #5E3442;
+    --pm-s1: #FDF9FA; --pm-s2: #F4E3E9; --pm-ink: #3A0D1C; --pm-accent: #8C1D40; --pm-gold: #6B4A00; --pm-border: #E6C1CE; --pm-band: #5A0F27;
+  }
+  html.projector[data-palette="violeta"] {
+    --em: #5B3FA0; --em-dark: #36236B; --em-mid: #6547B0; --em-light: #6A4BC0; --em-pale: #DFD6F4; --em-ghost: #F4F0FC;
+    --gold: #0F6B63; --gold-lt: #5FD0C4; --gold-pale: #D3F1EC; --cream: #FAF9FD; --body: #231544; --mid: #453A63;
+    --pm-s1: #FBF9FE; --pm-s2: #EBE4F8; --pm-ink: #231544; --pm-accent: #5B3FA0; --pm-gold: #0F5F58; --pm-border: #D2C6EE; --pm-band: #36236B;
+  }
+  html.projector[data-palette="contraste"] {
+    --em: #003A8C; --em-dark: #000000; --em-mid: #003A8C; --em-light: #003A8C; --em-pale: #D6D6D6; --em-ghost: #F2F2F2;
+    --gold: #8A2E00; --gold-lt: #FFD166; --gold-pale: #FFF1CC; --cream: #FFFFFF; --body: #000000; --mid: #1A1A1A;
+    --pm-s1: #FFFFFF; --pm-s2: #ECECEC; --pm-ink: #000000; --pm-accent: #003A8C; --pm-gold: #7A2800; --pm-border: #595959; --pm-band: #000000;
+  }
+  html.projector nav, html.projector .projector-bar, html.projector .present-controls { background: var(--pm-band); }
+  html.projector nav .nav-pill-projector { background: var(--gold); color: #FFFFFF; border-color: var(--gold); }
+  html.projector .pm-bg { background: linear-gradient(160deg, var(--pm-s1) 0%, var(--pm-s2) 100%) !important; }
+  html.projector .pm-card { background: #FFFFFF !important; border-color: var(--pm-border) !important; box-shadow: 0 2px 10px rgba(0,0,0,.07) !important; }
+  html.projector .pm-ink { color: var(--pm-ink) !important; }
+  html.projector .pm-accent { color: var(--pm-accent) !important; }
+  html.projector .pm-gold { color: var(--pm-gold) !important; }
+  html.projector .quote-author { color: var(--pm-gold); }
+  html.projector body { background: var(--cream); }
+  /* Textos tenues, fondos pálidos y dorados claros: en proyector se refuerzan para lectura a
+     distancia (clases asignadas por applyProjectorTheme, no dependen del estilo en línea). */
+  html.projector .pm-faint { color: var(--mid) !important; }
+  html.projector .pm-bright { color: rgba(255,255,255,.96) !important; }
+  html.projector .pm-ghost { background-color: var(--em-ghost) !important; }
+  html.projector .pm-goldbg { background: linear-gradient(135deg, var(--gold), var(--pm-gold)) !important; }
+  html.projector .mod-locked-badge { opacity: 1 !important; background: var(--pm-accent) !important; color: #FFFFFF; }
   html.projector body, html.projector [style*="font-weight:300"] { font-weight: 400; }
   .projector-bar {
     position: fixed; right: 1rem; bottom: 1rem; z-index: 1500;
@@ -887,7 +924,7 @@
   .present-ribbon {
     position: absolute; left: 0; right: 0; top: 0; height: 44px; z-index: 2;
     display: flex; align-items: center; gap: .6rem; padding: 0 40px;
-    background: rgba(13,74,56,.94); color: #F0B55A;
+    background: var(--pm-band, #0D4A38); color: #FFFFFF;
     font: 600 15px var(--sans); letter-spacing: .05em;
   }
   .present-ribbon[hidden] { display: none; }
@@ -906,6 +943,24 @@
   .present-controls button:hover { background: var(--gold); color: #0D4A38; }
   #presentCounter { color: #F0B55A; font: 600 14px var(--sans); min-width: 72px; text-align: center; }
   @media (max-width: 600px) { #btnPresent { display: none; } }
+  .palette-panel {
+    position: fixed; right: 16px; bottom: 76px; z-index: 5000; width: 290px;
+    background: #FFFFFF; color: #10231C; border: 1px solid #C9D6D0; border-radius: 16px;
+    box-shadow: 0 16px 40px rgba(0,0,0,.35); padding: 12px; font-family: var(--sans); zoom: 1;
+  }
+  .palette-panel[hidden] { display: none !important; }
+  .palette-head { display: flex; align-items: center; justify-content: space-between; font: 700 16px var(--sans); margin: 2px 4px 10px; }
+  .palette-head button { background: none; border: none; font-size: 18px; cursor: pointer; color: #10231C; }
+  .palette-option {
+    display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; margin-bottom: 6px;
+    background: #F4F6F5; border: 2px solid transparent; border-radius: 12px; cursor: pointer;
+    font: 600 15px var(--sans); color: #10231C; text-align: left;
+  }
+  .palette-option:hover { border-color: #9AA9A3; }
+  .palette-option.active { border-color: #10231C; background: #FFFFFF; }
+  .palette-swatch { display: flex; gap: 3px; }
+  .palette-swatch i { width: 18px; height: 18px; border-radius: 50%; display: block; border: 1px solid rgba(0,0,0,.15); }
+
 
 </style>
 </head>
@@ -4075,7 +4130,9 @@ function applyProjectorTheme(root) {
       translucentCard: hasTranslucentLightBackground(cs) && rect.width >= 60 && rect.height >= 30,
       ownBg: hasOwnBackground(cs),
       color: parseRgba(cs.color),
-      hasText: [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())
+      hasText: [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()),
+      bg: parseRgba(cs.backgroundColor),
+      goldBg: cs.backgroundImage.includes('rgb(212, 149, 42)')
     });
   });
 
@@ -4094,7 +4151,16 @@ function applyProjectorTheme(root) {
     el.dataset.pm = '1';
     if (d.darkBig) el.classList.add('pm-bg');
     if (d.translucentCard && onConverted(el.parentElement)) el.classList.add('pm-card');
-    if (d.color && (d.hasText || d.darkBig) && onConverted(el)) {
+    const bg = d.bg;
+    if (bg && bg.a > 0.9 && bg.r === 232 && bg.g === 245 && bg.b === 238) el.classList.add('pm-ghost');
+    if (d.goldBg) el.classList.add('pm-goldbg');
+    const converted = onConverted(el);
+    if (d.color && d.hasText && !converted && d.color.a < 0.95) {
+      // Textos semitransparentes que se quedan sobre su fondo original.
+      if (luminance(d.color) < 0.05 && d.color.a < 0.7) el.classList.add('pm-faint');
+      else if (luminance(d.color) > 0.9) el.classList.add('pm-bright');
+    }
+    if (d.color && (d.hasText || d.darkBig) && converted) {
       const c = d.color;
       const lum = luminance(c);
       if (c.r - c.b > 70 && c.r >= c.g) el.classList.add('pm-gold');           // dorados
@@ -4479,8 +4545,67 @@ function changePresentCanvas(step) {
   if (presenting) relayoutPresentation(null);
 }
 
+// ─── Paletas de color ───────────────────────────────────────────
+const PALETTE_STORAGE = 'gth_paleta';
+const PALETTES = [
+  { id: 'verde', name: 'Verde', colors: ['#0D4A38', '#9A5800', '#E4F3EC'] },
+  { id: 'azul', name: 'Azul', colors: ['#0F2F57', '#A04A00', '#E2EBF6'] },
+  { id: 'vino', name: 'Vino', colors: ['#5A0F27', '#7A5500', '#F4E3E9'] },
+  { id: 'violeta', name: 'Violeta', colors: ['#36236B', '#0F6B63', '#EBE4F8'] },
+  { id: 'contraste', name: 'Alto contraste', colors: ['#000000', '#003A8C', '#FFFFFF'] },
+  { id: 'original', name: 'Diseño original (oscuro)', colors: ['#0D4A38', '#F0B55A', '#1A7A5E'], presentOnly: true }
+];
+let currentPalette = 'verde';
+
+function setPalette(id) {
+  if (!PALETTES.some(pal => pal.id === id)) return;
+  if (id === 'original') {
+    presentColors = false;
+  } else {
+    presentColors = true;
+    currentPalette = id;
+    document.documentElement.dataset.palette = id;
+  }
+  try { localStorage.setItem(PALETTE_STORAGE, id); } catch (e) {}
+  applyPresentColors();
+  renderPaletteList();
+}
+
+function renderPaletteList() {
+  const list = document.getElementById('paletteList');
+  if (!list) return;
+  list.textContent = '';
+  PALETTES.filter(pal => !pal.presentOnly || presenting).forEach(pal => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const active = pal.id === 'original' ? !presentColors : presentColors && pal.id === currentPalette;
+    btn.className = 'palette-option' + (active ? ' active' : '');
+    const sw = document.createElement('span');
+    sw.className = 'palette-swatch';
+    pal.colors.forEach(col => { const dot = document.createElement('i'); dot.style.background = col; sw.appendChild(dot); });
+    btn.appendChild(sw);
+    btn.appendChild(document.createTextNode(pal.name));
+    btn.addEventListener('click', () => setPalette(pal.id));
+    list.appendChild(btn);
+  });
+}
+
+function togglePalettePanel(force) {
+  const panel = document.getElementById('palettePanel');
+  panel.hidden = force === undefined ? !panel.hidden : !force;
+  if (!panel.hidden) renderPaletteList();
+}
+
+function initPalette() {
+  let saved = null;
+  try { saved = localStorage.getItem(PALETTE_STORAGE); } catch (e) {}
+  if (saved && saved !== 'original' && PALETTES.some(pal => pal.id === saved)) currentPalette = saved;
+  document.documentElement.dataset.palette = currentPalette;
+  presentColors = saved !== 'original';
+}
+
 function applyPresentColors() {
-  document.documentElement.classList.toggle('projector', presentColors || projectorOn);
+  document.documentElement.classList.toggle('projector', presenting ? presentColors : projectorOn);
   if (presenting) renderSlide();
 }
 
@@ -4629,8 +4754,7 @@ function presentPrev() {
 }
 
 function togglePresentColors() {
-  presentColors = !presentColors;
-  applyPresentColors();
+  setPalette(presentColors ? 'original' : currentPalette);
 }
 
 function wakePresentControls() {
@@ -4663,6 +4787,7 @@ window.addEventListener('keydown', (e) => {
     ArrowLeft: presentPrev, ArrowUp: presentPrev, PageUp: presentPrev, Backspace: presentPrev,
     Home: () => presentGo(0), End: () => presentGo(presentSlides.length - 1),
     Escape: () => stopPresentation(), t: togglePresentColors, T: togglePresentColors,
+    p: () => togglePalettePanel(), P: () => togglePalettePanel(),
     '+': () => changePresentCanvas(1), '=': () => changePresentCanvas(1), '-': () => changePresentCanvas(-1)
   };
   const action = actions[e.key];
@@ -4694,6 +4819,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateLockUI();
   checkTeacherAccessRequest();
   syncProtectedModules();
+  initPalette();
   initProjectorMode();
   initPresentationFromUrl();
 });
@@ -5447,9 +5573,15 @@ document.addEventListener("DOMContentLoaded",function(){
     <button type="button" onclick="presentNext()" title="Siguiente (→)">▶</button>
     <button type="button" onclick="changePresentCanvas(1)" title="Letra más grande (+)">A+</button>
     <button type="button" onclick="changePresentCanvas(-1)" title="Letra más pequeña (−)">A−</button>
-    <button type="button" onclick="togglePresentColors()" title="Colores claros / originales (T)">🎨</button>
+    <button type="button" onclick="togglePalettePanel()" title="Paleta de colores (P)">🎨</button>
     <button type="button" onclick="stopPresentation()" title="Salir (Esc)">✕</button>
   </div>
+</div>
+
+<!-- Selector de paletas de color (proyector y presentación) -->
+<div id="palettePanel" class="palette-panel" hidden>
+  <div class="palette-head">🎨 Paleta de colores <button type="button" onclick="togglePalettePanel(false)" aria-label="Cerrar">✕</button></div>
+  <div id="paletteList"></div>
 </div>
 
 <!-- Controles del modo proyector -->
@@ -5457,6 +5589,7 @@ document.addEventListener("DOMContentLoaded",function(){
   <span>🖥️ Proyector</span>
   <button type="button" onclick="changeProjectorScale(-1)" title="Letra más pequeña">A−</button>
   <button type="button" onclick="changeProjectorScale(1)" title="Letra más grande">A+</button>
+  <button type="button" onclick="togglePalettePanel()" title="Paleta de colores">🎨</button>
   <button type="button" onclick="toggleProjectorMode()" title="Volver al diseño normal">Salir</button>
 </div>
 

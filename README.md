@@ -46,6 +46,18 @@ En `Seminario_final.html` el contenido protegido está entre los marcadores
 2. Ejecuta `npm run construir`. Si algo protegido fuera a quedar público, se detiene con un error.
 3. Haz commit de `Seminario_final.html`, `public/` y `api/_contenido/`, y push a `main`.
 
+## Presentar en el salón
+
+- **▶ Presentar** (o `/?presentar`): convierte el módulo abierto en diapositivas 16:9 con letra
+  grande. Flechas, Av Pág/Re Pág o espacio para avanzar; **Esc** para salir.
+- **A+ / A−** (o teclas `+` / `-`): agrandan o reducen todo el contenido de la diapositiva.
+- **🎨 Paleta** (o tecla **P**): elige entre Verde, Azul, Vino, Violeta y Alto contraste (fondo
+  claro y letra oscura; todos los textos cumplen contraste ≥ 4.5:1). La elección se recuerda.
+  **T** vuelve al diseño original oscuro.
+- **🖥️ Proyector** (o `/?proyector`): la página normal con fondos claros, zoom y la misma paleta.
+
+Pruebas: `npm run test:presentar` (cortes, cobertura de textos, navegación y contraste por paleta).
+
 ## Probar localmente
 
 ```bash
