@@ -858,6 +858,51 @@
   }
   .projector-bar button:hover { background: var(--gold); color: #0D4A38; }
 
+  /* ═══════════════════════════════════════
+     MODO DIAPOSITIVAS ("Presentar"): la página del módulo se muestra por tramos en un
+     lienzo 16:9 de 1366×768 que se escala a la pantalla (ver startPresentation()).
+  ═══════════════════════════════════════ */
+  html.presenting { zoom: 1 !important; }
+  html.presenting, html.presenting body { overflow: hidden; }
+  html.presenting #projectorBar, html.presenting #teacherBadge { display: none !important; }
+  .present-stage { position: fixed; inset: 0; z-index: 3000; background: #0B1F19; overflow: hidden; }
+  #presentStage[hidden] { display: none !important; }
+  .present-window {
+    position: absolute; left: 50%; top: 50%; width: 1366px; height: 768px;
+    overflow: hidden; transform-origin: center; background: #F4FAF7;
+    box-shadow: 0 0 60px rgba(0,0,0,.5);
+  }
+  .present-window > .page { position: absolute; left: 0; top: 0; width: 1366px; display: block; }
+  html.presenting #presentWindow section[style*="min-height:100vh"],
+  html.presenting #presentWindow #hero { min-height: 768px !important; }
+  html.presenting #presentWindow .reveal { opacity: 1 !important; transform: none !important; }
+  /* Mover la página al escenario reinicia las animaciones de entrada: se muestran ya completas */
+  html.presenting #presentWindow :is(.hero-tag, .hero-title, .hero-subtitle, .hero-divider, .hero-quote, .hero-meta, .hero-scroll) { animation: none !important; }
+  html.presenting .modal-overlay, html.presenting .unlock-modal-overlay,
+  html.presenting #evalModal, html.presenting #lightbox-overlay { z-index: 4000 !important; }
+  .present-ribbon {
+    position: absolute; left: 0; right: 0; top: 0; height: 44px; z-index: 2;
+    display: flex; align-items: center; gap: .6rem; padding: 0 40px;
+    background: rgba(13,74,56,.94); color: #F0B55A;
+    font: 600 15px var(--sans); letter-spacing: .05em;
+  }
+  .present-ribbon[hidden] { display: none; }
+  .present-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(255,255,255,.12); }
+  #presentProgress { height: 100%; width: 0; background: var(--gold); transition: width .25s ease; }
+  .present-controls {
+    position: absolute; right: 16px; bottom: 16px; display: flex; align-items: center; gap: 6px;
+    background: rgba(13,74,56,.92); border: 1px solid rgba(240,181,90,.5); border-radius: 30px;
+    padding: 5px 8px; transition: opacity .4s ease; font-family: var(--sans);
+  }
+  .present-controls.idle { opacity: 0; }
+  .present-controls button {
+    background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(200,237,226,.3);
+    border-radius: 20px; padding: 6px 12px; font: 700 14px var(--sans); cursor: pointer;
+  }
+  .present-controls button:hover { background: var(--gold); color: #0D4A38; }
+  #presentCounter { color: #F0B55A; font: 600 14px var(--sans); min-width: 72px; text-align: center; }
+  @media (max-width: 800px) { #btnPresent { display: none; } }
+
 </style>
 </head>
 <body>
@@ -871,6 +916,7 @@
     <a href="#hero" class="nav-pill" id="pill-inicio" onclick="if(currentPage!==1){event.preventDefault();goToModule(1);}">Inicio</a>
     <a href="#modulos" class="nav-pill" id="pill-modulos" onclick="showModuleMenu(event)">Módulos ▾</a>
     <a href="#" class="nav-pill" id="pill-biblio" onclick="event.preventDefault();goToBiblio()">Bibliografía</a>
+    <button type="button" class="nav-pill nav-pill-projector" id="btnPresent" onclick="startPresentation()" title="Presentar el módulo en diapositivas a pantalla completa">▶ Presentar</button>
     <button type="button" class="nav-pill nav-pill-projector" id="btnProjector" onclick="toggleProjectorMode()" title="Fondos claros y letra grande para proyectar en el salón">🖥️ Proyector</button>
     <div style="position:relative">
       <button class="nav-pill-download" onclick="toggleDownloadMenu(event)" id="btn-download">Descargar</button>
@@ -4102,6 +4148,302 @@ function initProjectorMode() {
   if (saved !== null || params.has('proyector')) setProjectorMode(true);
 }
 
+// ─── MODO DIAPOSITIVAS ("Presentar") ────────────────────────────
+// La página del módulo se mueve (no se copia) a un lienzo de 1366×768 escalado a la pantalla y
+// se muestra por tramos. Las secciones altas se parten donde no se atraviesa ninguna tarjeta,
+// texto o imagen. Al salir, la página vuelve a su lugar con todo su estado.
+const SLIDE_W = 1366;
+const SLIDE_H = 768;
+const RIBBON_H = 44;
+let presenting = false;
+let presentSlides = [];
+let presentIndex = 0;
+let presentPageEl = null;
+let presentPlaceholder = null;
+let presentColors = true;
+let presentIdleTimer = null;
+let presentFullscreen = false;
+
+function presentPageNumber() {
+  return presentPageEl ? Number(presentPageEl.id.replace('page-', '')) : 0;
+}
+
+function sectionTitle(block) {
+  const h = block.querySelector('h1, h2, .section-title, h3');
+  return h ? h.textContent.replace(/\s+/g, ' ').trim() : '';
+}
+
+// Tramos verticales que no se pueden partir: textos, imágenes y tarjetas (cajas con fondo o borde).
+function unbreakableRanges(block, base) {
+  const ranges = [];
+  block.querySelectorAll('*').forEach(el => {
+    if (el.closest('svg') && el.tagName.toLowerCase() !== 'svg') return;
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const cs = getComputedStyle(el);
+    const hasText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+    const bg = parseRgba(cs.backgroundColor);
+    const isBox = ((bg && bg.a > 0.02) || parseFloat(cs.borderTopWidth) > 0 || cs.backgroundImage !== 'none') &&
+      r.height < SLIDE_H - RIBBON_H - 20;
+    if (hasText || isBox || el.tagName === 'IMG' || el.tagName.toLowerCase() === 'svg') {
+      ranges.push([r.top - base, r.bottom - base]);
+    }
+  });
+  return ranges;
+}
+
+function isValidCut(y, ranges) {
+  return !ranges.some(([a, b]) => a < y - 0.5 && b > y + 0.5);
+}
+
+// Primero calcula cuántas partes hacen falta; luego reparte los cortes de forma pareja,
+// eligiendo en cada paso el borde válido más cercano al punto ideal.
+function splitBlock(top, bottom, ranges) {
+  const greedy = splitBlockGreedy(top, bottom, ranges);
+  if (greedy.length < 2) return greedy;
+  const edges = [...new Set(ranges.flat())].filter(y => isValidCut(y, ranges));
+  const pieces = [];
+  let start = top;
+  for (let i = 1; i < greedy.length; i++) {
+    const maxLen = pieces.length ? SLIDE_H - RIBBON_H : SLIDE_H;
+    const ideal = top + (bottom - top) * i / greedy.length;
+    const options = edges.filter(y => y > start + 120 && y <= start + maxLen);
+    if (!options.length) return greedy;
+    const cut = options.reduce((best, y) => Math.abs(y - ideal) < Math.abs(best - ideal) ? y : best);
+    pieces.push([start, cut]);
+    start = cut;
+  }
+  if (bottom - start > SLIDE_H - RIBBON_H) return greedy;
+  pieces.push([start, bottom]);
+  return pieces;
+}
+
+function splitBlockGreedy(top, bottom, ranges) {
+  const pieces = [];
+  let start = top;
+  while (bottom - start > (pieces.length ? SLIDE_H - RIBBON_H : SLIDE_H)) {
+    const limit = start + (pieces.length ? SLIDE_H - RIBBON_H : SLIDE_H);
+    const candidates = ranges.flat().filter(y => y > start + 120 && y <= limit).sort((a, b) => b - a);
+    let cut = candidates.find(y => !ranges.some(([a, b]) => a < y - 0.5 && b > y + 0.5));
+    if (cut === undefined) cut = limit;
+    pieces.push([start, cut]);
+    start = cut;
+  }
+  pieces.push([start, bottom]);
+  return pieces;
+}
+
+function buildSlides(page) {
+  const base = page.getBoundingClientRect().top;
+  const slides = [];
+  [...page.children].forEach(block => {
+    if (block.tagName === 'SCRIPT') return;
+    const r = block.getBoundingClientRect();
+    if (r.height < 150) return; // barras de "siguiente módulo" y similares
+    const top = r.top - base;
+    const pieces = splitBlock(top, r.bottom - base, unbreakableRanges(block, base));
+    const title = sectionTitle(block);
+    pieces.forEach(([a, b], i) => slides.push({ block, top: a, height: b - a, part: i + 1, parts: pieces.length, title }));
+  });
+  return slides;
+}
+
+function fitPresentWindow() {
+  const scale = Math.min(window.innerWidth / SLIDE_W, window.innerHeight / SLIDE_H);
+  document.getElementById('presentWindow').style.transform = `translate(-50%, -50%) scale(${scale})`;
+}
+
+function renderSlide() {
+  const slide = presentSlides[presentIndex];
+  if (!slide) return;
+  const win = document.getElementById('presentWindow');
+  const ribbon = document.getElementById('presentRibbon');
+  const continued = slide.part > 1;
+  const offset = continued
+    ? RIBBON_H + Math.max(0, (SLIDE_H - RIBBON_H - slide.height) / 2)
+    : Math.max(0, (SLIDE_H - slide.height) / 2);
+  const pageH = presentPageEl.scrollHeight;
+  presentPageEl.style.transform = `translateY(${offset - slide.top}px)`;
+  presentPageEl.style.clipPath = `inset(${slide.top}px 0 ${Math.max(0, pageH - slide.top - slide.height)}px 0)`;
+
+  const cs = getComputedStyle(slide.block);
+  const pageBg = getComputedStyle(document.body).backgroundColor;
+  win.style.backgroundColor = parseRgba(cs.backgroundColor) && parseRgba(cs.backgroundColor).a > 0 ? cs.backgroundColor : pageBg;
+  win.style.backgroundImage = cs.backgroundImage;
+
+  ribbon.hidden = !continued;
+  ribbon.textContent = (slide.title || 'Continuación') + `  ·  ${slide.part}/${slide.parts}`;
+  document.getElementById('presentCounter').textContent = `${presentIndex + 1} / ${presentSlides.length}`;
+  document.getElementById('presentProgress').style.width = ((presentIndex + 1) / presentSlides.length * 100) + '%';
+  win.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' });
+}
+
+function applyPresentColors() {
+  document.documentElement.classList.toggle('projector', presentColors || projectorOn);
+  if (presenting) renderSlide();
+}
+
+function startPresentation(fromStart) {
+  if (presenting) return;
+  const page = document.querySelector('.page.active');
+  if (!page) return;
+  presenting = true;
+
+  // Sección visible ahora, para empezar desde ahí
+  let currentBlock = null;
+  if (!fromStart) {
+    currentBlock = [...page.children].find(b => b.getBoundingClientRect().bottom > 140) || null;
+  }
+
+  applyProjectorTheme(page); // clases de colores claros (solo actúan con html.projector)
+  presentPageEl = page;
+  presentPlaceholder = document.createComment('presentación');
+  page.before(presentPlaceholder);
+  document.documentElement.classList.add('presenting');
+  applyPresentColors();
+
+  const stage = document.getElementById('presentStage');
+  const win = document.getElementById('presentWindow');
+  stage.hidden = false;
+  win.style.transform = 'none';
+  win.appendChild(page);
+  page.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+  presentSlides = buildSlides(page);
+  presentIndex = Math.max(0, presentSlides.findIndex(sl => sl.block === currentBlock));
+
+  fitPresentWindow();
+  renderSlide();
+  wakePresentControls();
+  if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().then(() => { presentFullscreen = true; }).catch(() => {});
+  }
+}
+
+function stopPresentation(keepFullscreen) {
+  if (!presenting) return;
+  presenting = false;
+  const slide = presentSlides[presentIndex];
+  const page = presentPageEl;
+  page.style.transform = '';
+  page.style.clipPath = '';
+  presentPlaceholder.replaceWith(page);
+  presentPlaceholder = null;
+  presentPageEl = null;
+  document.getElementById('presentStage').hidden = true;
+  document.documentElement.classList.remove('presenting');
+  document.documentElement.classList.toggle('projector', projectorOn);
+  if (!keepFullscreen && document.fullscreenElement) {
+    presentFullscreen = false;
+    document.exitFullscreen().catch(() => {});
+  }
+  if (slide && !keepFullscreen) slide.block.scrollIntoView({ block: 'start' });
+}
+
+// Al desplegar o cerrar una tarjeta cambia la altura: se rearman las diapositivas y se muestra
+// la que contiene esa tarjeta.
+function relayoutPresentation(focusEl) {
+  if (!presenting) return;
+  const win = document.getElementById('presentWindow');
+  const page = presentPageEl;
+  const current = presentSlides[presentIndex];
+  win.style.transform = 'none';
+  page.style.transform = '';
+  page.style.clipPath = '';
+  presentSlides = buildSlides(page);
+  let index = -1;
+  if (focusEl) {
+    const base = page.getBoundingClientRect().top;
+    const r = focusEl.getBoundingClientRect();
+    const top = r.top - base;
+    const bottom = r.bottom - base;
+    index = presentSlides.findIndex(sl => top >= sl.top - 1 && bottom <= sl.top + sl.height + 1);
+    if (index === -1) index = presentSlides.findIndex(sl => top >= sl.top - 1 && top < sl.top + sl.height);
+  }
+  if (index === -1 && current) index = presentSlides.findIndex(sl => sl.block === current.block);
+  presentIndex = Math.max(0, index);
+  fitPresentWindow();
+  renderSlide();
+}
+
+function presentGo(index) {
+  presentIndex = Math.max(0, Math.min(presentSlides.length - 1, index));
+  renderSlide();
+}
+
+function presentNext() {
+  if (presentIndex < presentSlides.length - 1) { presentGo(presentIndex + 1); return; }
+  // Fin del módulo: seguir con el siguiente si ya está habilitado
+  const next = presentPageNumber() + 1;
+  if (next <= 6 && isModuleUnlocked(next)) {
+    stopPresentation(true);
+    navigateToModuleDirect(next);
+    setTimeout(() => startPresentation(true), 700);
+  }
+}
+
+function presentPrev() {
+  presentGo(presentIndex - 1);
+}
+
+function togglePresentColors() {
+  presentColors = !presentColors;
+  applyPresentColors();
+}
+
+function wakePresentControls() {
+  const controls = document.getElementById('presentControls');
+  controls.classList.remove('idle');
+  clearTimeout(presentIdleTimer);
+  presentIdleTimer = setTimeout(() => controls.classList.add('idle'), 2500);
+}
+
+function presentOverlayOpen() {
+  return !!document.querySelector('#modalOverlay.open, .unlock-modal-overlay.active') ||
+    (document.getElementById('lightbox-overlay') || {}).style?.display === 'flex';
+}
+
+// Clic: mitad izquierda retrocede, mitad derecha avanza (salvo sobre tarjetas, botones o enlaces).
+function handlePresentClick(e) {
+  if (!presenting || presentOverlayOpen()) return;
+  const card = e.target.closest('.exp-card');
+  if (card) { setTimeout(() => relayoutPresentation(card), 600); return; }
+  if (e.target.closest('[onclick]:not(#presentStage), a, button, input')) return;
+  if (e.clientX < window.innerWidth / 2) presentPrev();
+  else presentNext();
+}
+
+window.addEventListener('keydown', (e) => {
+  if (!presenting) return;
+  if (presentOverlayOpen()) return; // Esc y demás teclas las atiende el modal abierto
+  const actions = {
+    ArrowRight: presentNext, ArrowDown: presentNext, PageDown: presentNext, ' ': presentNext, Enter: presentNext,
+    ArrowLeft: presentPrev, ArrowUp: presentPrev, PageUp: presentPrev, Backspace: presentPrev,
+    Home: () => presentGo(0), End: () => presentGo(presentSlides.length - 1),
+    Escape: () => stopPresentation(), t: togglePresentColors, T: togglePresentColors
+  };
+  const action = actions[e.key];
+  if (!action) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  action();
+}, true);
+
+window.addEventListener('resize', () => { if (presenting) fitPresentWindow(); });
+
+document.addEventListener('fullscreenchange', () => {
+  // Esc en pantalla completa la cierra sin enviar la tecla a la página: salir también de la presentación
+  if (!document.fullscreenElement && presentFullscreen) {
+    presentFullscreen = false;
+    if (presenting) stopPresentation(true);
+  }
+});
+
+function initPresentationFromUrl() {
+  if (new URLSearchParams(location.search).has('presentar')) {
+    setTimeout(() => startPresentation(true), location.protocol === 'file:' ? 300 : 900);
+  }
+}
+
 // Al cargar: datos de modales ya presentes, estado de bloqueos y consulta al servidor.
 document.addEventListener('DOMContentLoaded', () => {
   mergeModalData(document);
@@ -4109,6 +4451,7 @@ document.addEventListener('DOMContentLoaded', () => {
   checkTeacherAccessRequest();
   syncProtectedModules();
   initProjectorMode();
+  initPresentationFromUrl();
 });
 
 function goToModule(num) {
@@ -4845,6 +5188,21 @@ document.addEventListener("DOMContentLoaded",function(){
         <button type="submit" class="unlock-btn-submit" id="unlockSubmitBtn">Ingresar</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Escenario del modo diapositivas -->
+<div id="presentStage" class="present-stage" hidden onclick="handlePresentClick(event)" onmousemove="wakePresentControls()">
+  <div id="presentWindow" class="present-window">
+    <div id="presentRibbon" class="present-ribbon" hidden></div>
+  </div>
+  <div class="present-progress"><div id="presentProgress"></div></div>
+  <div id="presentControls" class="present-controls">
+    <button type="button" onclick="presentPrev()" title="Anterior (←)">◀</button>
+    <span id="presentCounter">1 / 1</span>
+    <button type="button" onclick="presentNext()" title="Siguiente (→)">▶</button>
+    <button type="button" onclick="togglePresentColors()" title="Colores claros / originales (T)">🎨</button>
+    <button type="button" onclick="stopPresentation()" title="Salir (Esc)">✕</button>
   </div>
 </div>
 
