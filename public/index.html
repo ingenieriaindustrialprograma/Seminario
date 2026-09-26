@@ -868,14 +868,18 @@
   html.presenting #projectorBar, html.presenting #teacherBadge { display: none !important; }
   .present-stage { position: fixed; inset: 0; z-index: 3000; background: #0B1F19; overflow: hidden; }
   #presentStage[hidden] { display: none !important; }
+  html.presenting .pm-noshadow { box-shadow: none !important; }
+  /* Tablas anchas: se ajustan al ancho de la diapositiva (se parten entre filas, nunca en una celda) */
+  html.presenting #presentWindow table { min-width: 0 !important; table-layout: fixed; }
+  html.presenting #presentWindow th, html.presenting #presentWindow td { white-space: normal !important; overflow-wrap: anywhere; }
   .present-window {
-    position: absolute; left: 50%; top: 50%; width: 1366px; height: 768px;
+    position: absolute; left: 50%; top: 50%; width: 960px; height: 540px;
     overflow: hidden; transform-origin: center; background: #F4FAF7;
     box-shadow: 0 0 60px rgba(0,0,0,.5);
   }
-  .present-window > .page { position: absolute; left: 0; top: 0; width: 1366px; display: block; }
+  .present-window > .page { position: absolute; left: 0; top: 0; width: 960px; display: block; }
   html.presenting #presentWindow section[style*="min-height:100vh"],
-  html.presenting #presentWindow #hero { min-height: 768px !important; }
+  html.presenting #presentWindow #hero { min-height: var(--present-h, 540px) !important; }
   html.presenting #presentWindow .reveal { opacity: 1 !important; transform: none !important; }
   /* Mover la página al escenario reinicia las animaciones de entrada: se muestran ya completas */
   html.presenting #presentWindow :is(.hero-tag, .hero-title, .hero-subtitle, .hero-divider, .hero-quote, .hero-meta, .hero-scroll) { animation: none !important; }
@@ -2844,9 +2848,13 @@ function initProjectorMode() {
 // La página del módulo se mueve (no se copia) a un lienzo de 1366×768 escalado a la pantalla y
 // se muestra por tramos. Las secciones altas se parten donde no se atraviesa ninguna tarjeta,
 // texto o imagen. Al salir, la página vuelve a su lugar con todo su estado.
-const SLIDE_W = 1366;
-const SLIDE_H = 768;
+// Lienzo lógico de la diapositiva (16:9). Más pequeño = todo se ve más grande en pantalla.
+const PRESENT_CANVAS_WIDTHS = [1366, 1180, 1060, 960, 880, 800];
 const RIBBON_H = 44;
+const PRESENT_MIN_FONT = 12;      // px del lienzo (≈ 24 px en una pantalla de 1080)
+const CANVAS_STORAGE = 'gth_lienzo_presentacion';
+let presentCanvasIndex = 3;       // 960 × 540
+let presentCanvas = { w: 960, h: 540 };
 let presenting = false;
 let presentSlides = [];
 let presentIndex = 0;
@@ -2865,84 +2873,218 @@ function sectionTitle(block) {
   return h ? h.textContent.replace(/\s+/g, ' ').trim() : '';
 }
 
-// Tramos verticales que no se pueden partir: textos, imágenes y tarjetas (cajas con fondo o borde).
-function unbreakableRanges(block, base) {
-  const ranges = [];
-  block.querySelectorAll('*').forEach(el => {
-    if (el.closest('svg') && el.tagName.toLowerCase() !== 'svg') return;
-    const r = el.getBoundingClientRect();
-    if (!r.width || !r.height) return;
-    const cs = getComputedStyle(el);
-    const hasText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
-    const bg = parseRgba(cs.backgroundColor);
-    const isBox = ((bg && bg.a > 0.02) || parseFloat(cs.borderTopWidth) > 0 || cs.backgroundImage !== 'none') &&
-      r.height < SLIDE_H - RIBBON_H - 20;
-    if (hasText || isBox || el.tagName === 'IMG' || el.tagName.toLowerCase() === 'svg') {
-      ranges.push([r.top - base, r.bottom - base]);
-    }
-  });
-  return ranges;
+function usableHeight() {
+  return presentCanvas.h - RIBBON_H;
 }
 
-function isValidCut(y, ranges) {
-  return !ranges.some(([a, b]) => a < y - 0.5 && b > y + 0.5);
+// Cuánto se extiende la sombra de una caja por arriba y por abajo.
+function shadowExtent(cs) {
+  let up = 0, down = 0;
+  if (cs.boxShadow && cs.boxShadow !== 'none') {
+    cs.boxShadow.split(/,(?![^(]*\))/).forEach(sh => {
+      if (/inset/.test(sh)) return;
+      const nums = (sh.replace(/rgba?\([^)]*\)/, '').match(/-?[\d.]+px/g) || []).map(parseFloat);
+      const dy = nums[1] || 0, blur = nums[2] || 0, spread = nums[3] || 0;
+      down = Math.max(down, dy + blur + spread);
+      up = Math.max(up, -dy + blur + spread);
+    });
+  }
+  return [Math.max(0, up), Math.max(0, down)];
+}
+
+// Zonas donde no se puede cortar: textos, imágenes y cajas (fondo, borde o sombra), medidas solo
+// en su parte realmente visible (se descarta lo recortado por un contenedor, como el texto de las
+// tarjetas cerradas o los círculos decorativos). Las cajas más altas que la diapositiva sí se pueden
+// partir, pero nunca cerca de su borde. Las sombras no limitan el corte: al mostrar cada diapositiva
+// se apaga la sombra de las cajas que quedan en el borde.
+function layoutConstraints(root, base) {
+  const hard = [];
+  const text = [];
+  const edges = [];
+  const shadows = [];
+  const walk = (el, clipTop, clipBottom) => {
+    if (el.nodeType !== 1 || ['SCRIPT', 'STYLE'].includes(el.tagName)) return;
+    const isSvgChild = el.closest('svg') && el.tagName.toLowerCase() !== 'svg';
+    if (isSvgChild) return;
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none') return;
+    const r = el.getBoundingClientRect();
+    const top = Math.max(r.top - base, clipTop);
+    const bottom = Math.min(r.bottom - base, clipBottom);
+    let childTop = clipTop, childBottom = clipBottom;
+    if (el !== root && cs.overflow !== 'visible') {
+      childTop = Math.max(clipTop, r.top - base);
+      childBottom = Math.min(clipBottom, r.bottom - base);
+    }
+    if (r.width && r.height && bottom > top + 0.5 && cs.visibility !== 'hidden' && el !== root) {
+      const hasText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+      if (hasText || el.tagName === 'IMG' || el.tagName.toLowerCase() === 'svg') { hard.push([top, bottom]); text.push([top, bottom]); }
+      // Títulos y etiquetas se mantienen junto a su contenido (no quedan al final de una diapositiva)
+      const isHeading = /^H[1-6]$/.test(el.tagName) ||
+        (hasText && cs.textTransform === 'uppercase' && parseFloat(cs.letterSpacing) > 0.5 && bottom - top < 40);
+      if (isHeading) hard.push([top, bottom + 70]);
+      if (cs.boxShadow !== 'none') {
+        const [up, down] = shadowExtent(cs);
+        shadows.push({ el, top: r.top - base, bottom: r.bottom - base, vTop: r.top - base - up, vBottom: r.bottom - base + down });
+      }
+      const bg = parseRgba(cs.backgroundColor);
+      const isBox = (bg && bg.a > 0.02) || parseFloat(cs.borderTopWidth) > 0 ||
+        cs.backgroundImage !== 'none' || cs.boxShadow !== 'none';
+      const decorative = (cs.position === 'absolute' || cs.pointerEvents === 'none') && !el.textContent.trim() && !el.querySelector('img');
+      if (isBox && !decorative && r.width >= 40 && bottom - top >= 24) {
+        if (bottom - top <= usableHeight() - 8) hard.push([top, bottom]);
+        // Panel alto que sí se parte: no mostrar solo su cabecera ni solo su pie
+        else edges.push([top + 0.5, top + Math.min(160, (bottom - top) / 3)], [bottom - 60, bottom - 0.5]);
+      }
+    }
+    if (childBottom > childTop) [...el.children].forEach(ch => walk(ch, childTop, childBottom));
+  };
+  walk(root, -Infinity, Infinity);
+  return { hard, text, edges, shadows };
+}
+
+function isValidCut(y, c) {
+  return !c.hard.some(([a, b]) => a < y - 0.5 && b > y + 0.5) &&
+    !c.edges.some(([a, b]) => a < y && b > y);
+}
+
+// Candidatos: el centro de cada espacio libre entre contenidos (y sus bordes como respaldo).
+function cutCandidates(c) {
+  const sorted = c.hard.slice().sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  sorted.forEach(([a, b]) => {
+    const last = merged[merged.length - 1];
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b);
+    else merged.push([a, b]);
+  });
+  const ys = new Set();
+  for (let i = 0; i < merged.length - 1; i++) {
+    const g1 = merged[i][1], g2 = merged[i + 1][0];
+    ys.add((g1 + g2) / 2);
+    ys.add(g1 + 1);
+    ys.add(g2 - 1);
+  }
+  c.edges.forEach(([a, b]) => { ys.add(a - 0.5); ys.add(b + 0.5); });
+  // Bordes exactos entre elementos que se tocan (filas de una tabla, tarjetas pegadas)
+  c.hard.forEach(([a, b]) => { ys.add(a); ys.add(b); });
+  return [...ys].filter(y => isValidCut(y, c));
 }
 
 // Primero calcula cuántas partes hacen falta; luego reparte los cortes de forma pareja,
 // eligiendo en cada paso el borde válido más cercano al punto ideal.
-function splitBlock(top, bottom, ranges) {
-  const greedy = splitBlockGreedy(top, bottom, ranges);
-  if (greedy.length < 2) return greedy;
-  const edges = [...new Set(ranges.flat())].filter(y => isValidCut(y, ranges));
+function splitBlock(top, bottom, c) {
+  // Una sección apenas más alta que la diapositiva se muestra entera (reducida hasta 80%):
+  // evita diapositivas huérfanas con una sola tarjeta o un par de líneas.
+  if (bottom - top > presentCanvas.h && bottom - top <= presentCanvas.h / PRESENT_MIN_SCALE) {
+    return [[top, bottom, presentCanvas.h / (bottom - top)]];
+  }
+  const greedy = splitBlockGreedy(top, bottom, c);
+  if (greedy.length < 2 || greedy.some(p => p[2] < 1)) return greedy;
+  const candidates = cutCandidates(c);
   const pieces = [];
   let start = top;
   for (let i = 1; i < greedy.length; i++) {
-    const maxLen = pieces.length ? SLIDE_H - RIBBON_H : SLIDE_H;
+    const maxLen = pieces.length ? usableHeight() : presentCanvas.h;
     const ideal = top + (bottom - top) * i / greedy.length;
-    const options = edges.filter(y => y > start + 120 && y <= start + maxLen);
+    const options = candidates.filter(y => y > start + 80 && y <= start + maxLen);
     if (!options.length) return greedy;
     const cut = options.reduce((best, y) => Math.abs(y - ideal) < Math.abs(best - ideal) ? y : best);
-    pieces.push([start, cut]);
+    pieces.push([start, cut, 1]);
     start = cut;
   }
-  if (bottom - start > SLIDE_H - RIBBON_H) return greedy;
-  pieces.push([start, bottom]);
+  if (bottom - start > usableHeight()) return greedy;
+  pieces.push([start, bottom, 1]);
   return pieces;
 }
 
-function splitBlockGreedy(top, bottom, ranges) {
+// Si no hay corte limpio: (1) reducir levemente el tramo para que quepa entero (hasta 80%),
+// (2) cortar a través de una caja pero nunca de un texto, (3) último recurso: el límite.
+const PRESENT_MIN_SCALE = 0.8;
+
+function splitBlockGreedy(top, bottom, c) {
+  const candidates = cutCandidates(c).sort((a, b) => b - a);
+  // Respaldo: cortar a través de una caja pequeña, pero nunca de un texto ni del borde de un panel
+  const textAndEdges = cutCandidates({ hard: c.text, edges: c.edges }).sort((a, b) => b - a);
+  const textOnly = cutCandidates({ hard: c.text, edges: [] }).sort((a, b) => b - a);
   const pieces = [];
   let start = top;
-  while (bottom - start > (pieces.length ? SLIDE_H - RIBBON_H : SLIDE_H)) {
-    const limit = start + (pieces.length ? SLIDE_H - RIBBON_H : SLIDE_H);
-    const candidates = ranges.flat().filter(y => y > start + 120 && y <= limit).sort((a, b) => b - a);
-    let cut = candidates.find(y => !ranges.some(([a, b]) => a < y - 0.5 && b > y + 0.5));
+  const maxFor = () => (pieces.length ? usableHeight() : presentCanvas.h);
+  while (bottom - start > maxFor()) {
+    const maxLen = maxFor();
+    const limit = start + maxLen;
+    let cut = candidates.find(y => y > start + 80 && y <= limit);
+    let scale = 1;
+    if (cut === undefined) {
+      if (bottom - start <= maxLen / PRESENT_MIN_SCALE) { cut = bottom; }
+      else { cut = candidates.find(y => y > limit && y <= start + maxLen / PRESENT_MIN_SCALE); }
+      if (cut !== undefined) scale = Math.min(1, maxLen / (cut - start));
+    }
+    if (cut === undefined) cut = textAndEdges.find(y => y > start + 80 && y <= limit);
+    if (cut === undefined) cut = textOnly.find(y => y > start + 80 && y <= limit);
     if (cut === undefined) cut = limit;
-    pieces.push([start, cut]);
+    pieces.push([start, cut, scale]);
     start = cut;
   }
-  pieces.push([start, bottom]);
+  if (bottom > start + 1) pieces.push([start, bottom, 1]);
+  // Un sobrante mínimo (solo margen) se une a la diapositiva anterior, reduciéndola si hace falta
+  const last = pieces[pieces.length - 1];
+  if (pieces.length > 1 && last[1] - last[0] < 60) {
+    const prev = pieces[pieces.length - 2];
+    const maxLen = pieces.length > 2 ? usableHeight() : presentCanvas.h;
+    const len = last[1] - prev[0];
+    if (len <= maxLen / PRESENT_MIN_SCALE) {
+      pieces.splice(-2, 2, [prev[0], last[1], Math.min(1, maxLen / len)]);
+    }
+  }
   return pieces;
 }
 
+let presentShadowBoxes = [];
+
+// La página se trata como un flujo continuo: los límites entre secciones son cortes preferidos;
+// si algo los cruza (márgenes negativos, elementos superpuestos) se usa el corte limpio más cercano.
 function buildSlides(page) {
   const base = page.getBoundingClientRect().top;
-  const slides = [];
-  [...page.children].forEach(block => {
-    if (block.tagName === 'SCRIPT') return;
+  const c = layoutConstraints(page, base);
+  presentShadowBoxes = c.shadows;
+  const candidates = cutCandidates(c);
+  const nearestCut = (y, lo, hi) => {
+    if (isValidCut(y, c)) return y;
+    const options = candidates.filter(v => v >= lo && v <= hi);
+    return options.length ? options.reduce((best, v) => Math.abs(v - y) < Math.abs(best - y) ? v : best) : y;
+  };
+
+  const blocks = [...page.children].filter(b => b.tagName !== 'SCRIPT').map(block => {
     const r = block.getBoundingClientRect();
-    if (r.height < 150) return; // barras de "siguiente módulo" y similares
-    const top = r.top - base;
-    const pieces = splitBlock(top, r.bottom - base, unbreakableRanges(block, base));
-    const title = sectionTitle(block);
-    pieces.forEach(([a, b], i) => slides.push({ block, top: a, height: b - a, part: i + 1, parts: pieces.length, title }));
+    return { block, top: r.top - base, bottom: r.bottom - base, small: r.height < 150 };
+  });
+  const slides = [];
+  let start = null;
+  blocks.forEach((b, i) => {
+    if (b.small) { start = null; return; } // barras de "siguiente módulo" y similares: sin diapositiva
+    const segStart = start === null ? nearestCut(b.top, b.top - 150, b.top + 150) : start;
+    const next = blocks[i + 1];
+    const segEnd = next && !next.small ? nearestCut(b.bottom, b.bottom - 150, b.bottom + 150)
+      : nearestCut(b.bottom, b.bottom - 150, b.bottom);
+    start = segEnd;
+    if (segEnd - segStart < 40) return;
+    // Sin contenido visible (solo fondo o márgenes): no genera diapositiva
+    const pieces = splitBlock(segStart, segEnd, c)
+      .filter(([a, z]) => c.text.some(([ta, tz]) => Math.min(tz, z) - Math.max(ta, a) > 8));
+    const title = sectionTitle(b.block) || (slides.length ? slides[slides.length - 1].title : '');
+    pieces.forEach(([a, z, scale], k) => slides.push({ block: b.block, top: a, height: z - a, scale: scale || 1, part: k + 1, parts: pieces.length, title }));
   });
   return slides;
 }
 
 function fitPresentWindow() {
-  const scale = Math.min(window.innerWidth / SLIDE_W, window.innerHeight / SLIDE_H);
-  document.getElementById('presentWindow').style.transform = `translate(-50%, -50%) scale(${scale})`;
+  const win = document.getElementById('presentWindow');
+  win.style.width = presentCanvas.w + 'px';
+  win.style.height = presentCanvas.h + 'px';
+  win.style.setProperty('--present-h', presentCanvas.h + 'px');
+  if (presentPageEl) presentPageEl.style.width = presentCanvas.w + 'px';
+  const scale = Math.min(window.innerWidth / presentCanvas.w, window.innerHeight / presentCanvas.h);
+  win.style.transform = `translate(-50%, -50%) scale(${scale})`;
 }
 
 function renderSlide() {
@@ -2951,12 +3093,21 @@ function renderSlide() {
   const win = document.getElementById('presentWindow');
   const ribbon = document.getElementById('presentRibbon');
   const continued = slide.part > 1;
+  const k = slide.scale || 1;
+  const shown = slide.height * k;
   const offset = continued
-    ? RIBBON_H + Math.max(0, (SLIDE_H - RIBBON_H - slide.height) / 2)
-    : Math.max(0, (SLIDE_H - slide.height) / 2);
+    ? RIBBON_H + Math.max(0, (usableHeight() - shown) / 2)
+    : Math.max(0, (presentCanvas.h - shown) / 2);
   const pageH = presentPageEl.scrollHeight;
-  presentPageEl.style.transform = `translateY(${offset - slide.top}px)`;
+  presentPageEl.style.transformOrigin = '0 0';
+  presentPageEl.style.transform = `translate(${(presentCanvas.w * (1 - k)) / 2}px, ${offset}px) scale(${k}) translateY(${-slide.top}px)`;
   presentPageEl.style.clipPath = `inset(${slide.top}px 0 ${Math.max(0, pageH - slide.top - slide.height)}px 0)`;
+  const end = slide.top + slide.height;
+  presentShadowBoxes.forEach(b => {
+    const inside = b.top >= slide.top - 1 && b.bottom <= end + 1;
+    const touches = b.vBottom > slide.top && b.vTop < end;
+    b.el.classList.toggle('pm-noshadow', touches && !inside);
+  });
 
   const cs = getComputedStyle(slide.block);
   const pageBg = getComputedStyle(document.body).backgroundColor;
@@ -2968,6 +3119,56 @@ function renderSlide() {
   document.getElementById('presentCounter').textContent = `${presentIndex + 1} / ${presentSlides.length}`;
   document.getElementById('presentProgress').style.width = ((presentIndex + 1) / presentSlides.length * 100) + '%';
   win.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' });
+}
+
+// Letra mínima legible a distancia (baja visión): solo mientras se presenta; al salir se restaura.
+function applyMinFont(page) {
+  page.querySelectorAll('*').forEach(el => {
+    if (el.dataset.pmFs !== undefined) return;
+    if (![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) return;
+    if (parseFloat(getComputedStyle(el).fontSize) < PRESENT_MIN_FONT) {
+      el.dataset.pmFs = el.style.fontSize || '';
+      el.style.fontSize = PRESENT_MIN_FONT + 'px';
+    }
+  });
+}
+
+// Cuadrículas de 3 columnas con 4 tarjetas: una sola fila, para que ninguna quede sola.
+function rebalanceGrids(page) {
+  page.querySelectorAll('*').forEach(el => {
+    const cs = getComputedStyle(el);
+    if (cs.display !== 'grid' || el.children.length !== 4) return;
+    if (cs.gridTemplateColumns.split(' ').filter(Boolean).length !== 3) return;
+    el.dataset.pmGrid = el.style.gridTemplateColumns || '';
+    el.style.gridTemplateColumns = 'repeat(4, minmax(0, 1fr))';
+  });
+}
+
+function restoreGrids(page) {
+  page.querySelectorAll('[data-pm-grid]').forEach(el => {
+    el.style.gridTemplateColumns = el.dataset.pmGrid;
+    delete el.dataset.pmGrid;
+  });
+}
+
+function restoreMinFont(page) {
+  page.querySelectorAll('[data-pm-fs]').forEach(el => {
+    el.style.fontSize = el.dataset.pmFs;
+    delete el.dataset.pmFs;
+  });
+}
+
+function setPresentCanvas(index) {
+  presentCanvasIndex = Math.max(0, Math.min(PRESENT_CANVAS_WIDTHS.length - 1, index));
+  const w = PRESENT_CANVAS_WIDTHS[presentCanvasIndex];
+  presentCanvas = { w, h: Math.round(w * 9 / 16) };
+  try { localStorage.setItem(CANVAS_STORAGE, String(presentCanvasIndex)); } catch (e) {}
+}
+
+// A+ usa un lienzo más angosto (todo se ve más grande); A− uno más ancho.
+function changePresentCanvas(step) {
+  setPresentCanvas(presentCanvasIndex + step);
+  if (presenting) relayoutPresentation(null);
 }
 
 function applyPresentColors() {
@@ -2997,10 +3198,18 @@ function startPresentation(fromStart) {
   const stage = document.getElementById('presentStage');
   const win = document.getElementById('presentWindow');
   stage.hidden = false;
-  win.style.transform = 'none';
+  try {
+    const saved = localStorage.getItem(CANVAS_STORAGE);
+    setPresentCanvas(saved === null ? presentCanvasIndex : Number(saved));
+  } catch (e) { setPresentCanvas(presentCanvasIndex); }
   win.appendChild(page);
+  fitPresentWindow();
+  win.style.transform = 'none';
   page.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+  applyMinFont(page);
+  rebalanceGrids(page);
   presentSlides = buildSlides(page);
+  watchPresentLayout(page);
   presentIndex = Math.max(0, presentSlides.findIndex(sl => sl.block === currentBlock));
 
   fitPresentWindow();
@@ -3016,8 +3225,15 @@ function stopPresentation(keepFullscreen) {
   presenting = false;
   const slide = presentSlides[presentIndex];
   const page = presentPageEl;
+  if (presentResizeObserver) { presentResizeObserver.disconnect(); presentResizeObserver = null; }
+  clearTimeout(presentResizeTimer);
   page.style.transform = '';
+  page.style.transformOrigin = '';
   page.style.clipPath = '';
+  page.style.width = '';
+  restoreMinFont(page);
+  restoreGrids(page);
+  page.querySelectorAll('.pm-noshadow').forEach(el => el.classList.remove('pm-noshadow'));
   presentPlaceholder.replaceWith(page);
   presentPlaceholder = null;
   presentPageEl = null;
@@ -3038,6 +3254,7 @@ function relayoutPresentation(focusEl) {
   const win = document.getElementById('presentWindow');
   const page = presentPageEl;
   const current = presentSlides[presentIndex];
+  fitPresentWindow();
   win.style.transform = 'none';
   page.style.transform = '';
   page.style.clipPath = '';
@@ -3051,10 +3268,36 @@ function relayoutPresentation(focusEl) {
     index = presentSlides.findIndex(sl => top >= sl.top - 1 && bottom <= sl.top + sl.height + 1);
     if (index === -1) index = presentSlides.findIndex(sl => top >= sl.top - 1 && top < sl.top + sl.height);
   }
-  if (index === -1 && current) index = presentSlides.findIndex(sl => sl.block === current.block);
+  if (index === -1 && current) {
+    index = presentSlides.findIndex(sl => sl.block === current.block && current.top >= sl.top - 1 && current.top < sl.top + sl.height);
+    if (index === -1) index = presentSlides.findIndex(sl => sl.block === current.block);
+  }
   presentIndex = Math.max(0, index);
   fitPresentWindow();
   renderSlide();
+}
+
+// Si el contenido cambia de alto (imágenes o fuentes que terminan de cargar, tarjetas que se
+// despliegan), las diapositivas se rearman solas conservando el punto donde se está.
+let presentResizeObserver = null;
+let presentResizeTimer = null;
+let presentLastHeight = 0;
+
+function watchPresentLayout(page) {
+  presentLastHeight = page.scrollHeight;
+  presentResizeObserver = new ResizeObserver(() => {
+    if (!presenting || Math.abs(page.scrollHeight - presentLastHeight) < 2) return;
+    clearTimeout(presentResizeTimer);
+    presentResizeTimer = setTimeout(() => {
+      presentLastHeight = page.scrollHeight;
+      relayoutPresentation(null);
+    }, 200);
+  });
+  presentResizeObserver.observe(page);
+  const pending = [...page.querySelectorAll('img')].map(img => (img.decode ? img.decode().catch(() => {}) : null));
+  Promise.all([...pending, document.fonts ? document.fonts.ready : null]).then(() => {
+    if (presenting && presentPageEl === page) relayoutPresentation(null);
+  });
 }
 
 function presentGo(index) {
@@ -3098,7 +3341,7 @@ function presentOverlayOpen() {
 function handlePresentClick(e) {
   if (!presenting || presentOverlayOpen()) return;
   const card = e.target.closest('.exp-card');
-  if (card) { setTimeout(() => relayoutPresentation(card), 600); return; }
+  if (card) { setTimeout(() => relayoutPresentation(card), 700); return; }
   if (e.target.closest('[onclick]:not(#presentStage), a, button, input')) return;
   if (e.clientX < window.innerWidth / 2) presentPrev();
   else presentNext();
@@ -3111,7 +3354,8 @@ window.addEventListener('keydown', (e) => {
     ArrowRight: presentNext, ArrowDown: presentNext, PageDown: presentNext, ' ': presentNext, Enter: presentNext,
     ArrowLeft: presentPrev, ArrowUp: presentPrev, PageUp: presentPrev, Backspace: presentPrev,
     Home: () => presentGo(0), End: () => presentGo(presentSlides.length - 1),
-    Escape: () => stopPresentation(), t: togglePresentColors, T: togglePresentColors
+    Escape: () => stopPresentation(), t: togglePresentColors, T: togglePresentColors,
+    '+': () => changePresentCanvas(1), '=': () => changePresentCanvas(1), '-': () => changePresentCanvas(-1)
   };
   const action = actions[e.key];
   if (!action) return;
@@ -3770,6 +4014,8 @@ document.addEventListener("DOMContentLoaded",function(){
     <button type="button" onclick="presentPrev()" title="Anterior (←)">◀</button>
     <span id="presentCounter">1 / 1</span>
     <button type="button" onclick="presentNext()" title="Siguiente (→)">▶</button>
+    <button type="button" onclick="changePresentCanvas(1)" title="Letra más grande (+)">A+</button>
+    <button type="button" onclick="changePresentCanvas(-1)" title="Letra más pequeña (−)">A−</button>
     <button type="button" onclick="togglePresentColors()" title="Colores claros / originales (T)">🎨</button>
     <button type="button" onclick="stopPresentation()" title="Salir (Esc)">✕</button>
   </div>
