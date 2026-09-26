@@ -835,7 +835,7 @@
      Las clases pm-* las asigna applyProjectorTheme() solo a lo que era oscuro.
   ═══════════════════════════════════════ */
   .nav-pill-projector { background: none; font-family: var(--sans); }
-  html.projector { font-size: calc(var(--pm-scale, 1.35) * 100%); --mid: #2F4A41; --body: #17302A; --gold: #9A5800; --em-mid: #1B7C58; --em-light: #1F8A63; }
+  html.projector { zoom: var(--pm-scale, 1.35); --mid: #2F4A41; --body: #17302A; --gold: #9A5800; --em-mid: #1B7C58; --em-light: #1F8A63; }
   html.projector nav .nav-pill-projector { background: var(--gold); color: #0D4A38; border-color: var(--gold); }
   html.projector .pm-bg { background: linear-gradient(160deg, #F8FCFA 0%, #E4F3EC 100%) !important; }
   html.projector .pm-card { background: #FFFFFF !important; border-color: #B9DDCF !important; box-shadow: 0 2px 10px rgba(13,74,56,.08) !important; }
@@ -849,7 +849,7 @@
     display: flex; align-items: center; gap: .4rem;
     background: rgba(13,74,56,.95); border: 1px solid var(--gold); border-radius: 30px;
     padding: 6px 8px; box-shadow: 0 8px 24px rgba(0,0,0,.35);
-    font-family: var(--sans);
+    font-family: var(--sans)
   }
   .projector-bar span { color: var(--gold-lt); font-size: 13px; font-weight: 600; padding: 0 6px; }
   .projector-bar button {
@@ -2755,7 +2755,10 @@ function applyProjectorThemeToVisible() {
 
 function setProjectorScale(index) {
   projectorScaleIndex = Math.max(0, Math.min(PROJECTOR_SCALES.length - 1, index));
-  document.documentElement.style.setProperty('--pm-scale', PROJECTOR_SCALES[projectorScaleIndex]);
+  const scale = PROJECTOR_SCALES[projectorScaleIndex];
+  document.documentElement.style.setProperty('--pm-scale', scale);
+  const bar = document.getElementById('projectorBar');
+  if (bar) bar.style.zoom = String(1 / scale); // los controles conservan su tamaño
 }
 
 function setProjectorMode(on) {
