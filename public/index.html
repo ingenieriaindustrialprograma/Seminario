@@ -468,7 +468,10 @@
     transition: max-height .5s cubic-bezier(.22,1,.36,1), padding .3s ease;
     border-top: 0 solid var(--em-pale);
   }
-  .exp-card.active .exp-card-body { max-height: 500px; border-top-width: 1px; }
+  .exp-card.active .exp-card-body { max-height: 1600px; border-top-width: 1px; }
+  /* Al presentar, la tarjeta se despliega completa y al instante (así la diapositiva se rearma enseguida) */
+  html.presenting #presentWindow .exp-card-body { transition: none; }
+  html.presenting #presentWindow .exp-card.active .exp-card-body { max-height: none; }
   .exp-card-body-inner { padding: 1.2rem 1.3rem; }
   .exp-card-img {
     width: 100%; height: 130px; object-fit: cover; border-radius: 10px;
@@ -558,6 +561,8 @@
     padding: 6rem 2rem; text-align: center; position: relative; overflow: hidden;
   }
   .quote-mark { font-family: var(--serif); font-size: 8rem; color: var(--gold); line-height: .8; opacity: .35; position: absolute; top: 1rem; left: 50%; transform: translateX(-50%); }
+  /* Cita junto a una foto: la comilla va sobre el texto, no encima de las palabras */
+  .quote-mark[style*="margin:0 0 .5rem"] { position: static; transform: none; font-size: 5rem; line-height: .6; height: 2.2rem; }
   .quote-text { font-family: var(--serif); font-size: clamp(1.4rem, 2.5vw, 2.1rem); font-style: italic; color: var(--white); max-width: 750px; margin: 0 auto 1.5rem; line-height: 1.6; position: relative; z-index: 1; }
   .quote-author { font-size: .9rem; color: var(--gold-lt); letter-spacing: .1em; }
 
@@ -873,6 +878,9 @@
   html.projector .pm-gold { color: var(--pm-gold) !important; }
   html.projector .quote-author { color: var(--pm-gold); }
   html.projector body { background: var(--cream); }
+  /* En el salón nada depende de la animación de entrada: todo el contenido se ve de inmediato */
+  html.projector .reveal { opacity: 1 !important; transform: none !important; }
+  html.projector .nav-progress { display: none; }
   /* Textos tenues, fondos pálidos y dorados claros: en proyector se refuerzan para lectura a
      distancia (clases asignadas por applyProjectorTheme, no dependen del estilo en línea). */
   html.projector .pm-faint { color: var(--mid) !important; }
@@ -908,7 +916,25 @@
   html.presenting .pm-noshadow { box-shadow: none !important; }
   /* Tablas anchas: se ajustan al ancho de la diapositiva (se parten entre filas, nunca en una celda) */
   html.presenting #presentWindow table { min-width: 0 !important; table-layout: fixed; }
-  html.presenting #presentWindow th, html.presenting #presentWindow td { white-space: normal !important; overflow-wrap: anywhere; }
+  html.presenting #presentWindow th, html.presenting #presentWindow td { white-space: normal !important; overflow-wrap: break-word; }
+  /* Tabla de muchas columnas en un lienzo angosto: cada fila se muestra como una tarjeta con sus
+     etiquetas ("Necesidad", "Estructura"…), sin palabras partidas (ver adaptLayout()). */
+  table.pm-table-cards thead { display: none; }
+  table.pm-table-cards, table.pm-table-cards tbody { display: block; width: 100%; min-width: 0 !important; }
+  table.pm-table-cards tr {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .7rem 1.4rem;
+    padding: 1.1rem 1.3rem; margin: 0 0 1rem; border-radius: 14px;
+    background: rgba(255,255,255,.05); border: 1.5px solid rgba(200,237,226,.25) !important;
+  }
+  html.projector table.pm-table-cards tr { background: #FFFFFF; border-color: var(--pm-border) !important; }
+  table.pm-table-cards td { display: block; padding: 0 !important; line-height: 1.45; white-space: normal !important; }
+  table.pm-table-cards td::before {
+    content: attr(data-label); display: block; margin-bottom: .2rem;
+    font: 700 12px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--gold-lt);
+  }
+  html.projector table.pm-table-cards td::before { color: var(--pm-gold); }
+  table.pm-table-cards td:first-child { grid-column: 1 / -1; font-family: var(--serif); font-size: 1.15rem !important; }
+  table.pm-table-cards td:first-child::before { display: none; }
   .present-window {
     position: absolute; left: 50%; top: 50%; width: 960px; height: 540px;
     overflow: hidden; transform-origin: center; background: #F4FAF7;
@@ -918,10 +944,28 @@
   html.presenting #presentWindow section[style*="min-height:100vh"],
   html.presenting #presentWindow #hero { min-height: var(--present-h, 540px) !important; }
   html.presenting #presentWindow .reveal { opacity: 1 !important; transform: none !important; }
+  /* Portadas: sin el espacio reservado para la barra superior ni la flecha de "desplazarse" */
+  html.presenting #presentWindow :is(#hero, section[style*="min-height:100vh"]) { padding-top: 36px !important; padding-bottom: 28px !important; }
+  html.presenting #presentWindow .hero-scroll { display: none !important; }
+  html.presenting #presentWindow .hero-tag { margin-bottom: 1rem; }
+  /* Tarjetas de módulo: la insignia "Ver Módulo" y la fecha no se enciman con el título */
+  html.presenting #presentWindow .mod-card-top, html.projector .mod-card-top { flex-wrap: wrap; padding-top: 2.6rem; }
+  html.presenting #presentWindow .mod-name, html.projector .mod-name { flex: 1 1 55%; min-width: 0; }
+  /* Títulos: su tamaño depende del lienzo (--pv = 1% de su ancho), no de la pantalla, para que la
+     diapositiva se vea igual en cualquier proyector y la portada quepa al agrandar con A+. */
+  html.presenting #presentWindow .hero-title { font-size: min(5.2rem, calc(var(--pv, 9.6px) * 7.5)); }
+  html.presenting #presentWindow .section-title { font-size: min(2.8rem, calc(var(--pv, 9.6px) * 4.7)); }
+  html.presenting #presentWindow .reflexion-q { font-size: min(3.2rem, calc(var(--pv, 9.6px) * 5.3)); }
+  html.presenting #presentWindow .quote-text { font-size: min(2.1rem, calc(var(--pv, 9.6px) * 3.5)); }
+  html.presenting #presentWindow h1[style*="4vw"] { font-size: min(3rem, calc(var(--pv, 9.6px) * 5)) !important; }
   /* Mover la página al escenario reinicia las animaciones de entrada: se muestran ya completas */
   html.presenting #presentWindow :is(.hero-tag, .hero-title, .hero-subtitle, .hero-divider, .hero-quote, .hero-meta, .hero-scroll) { animation: none !important; }
   html.presenting .modal-overlay, html.presenting .unlock-modal-overlay,
   html.presenting #evalModal, html.presenting #lightbox-overlay { z-index: 4000 !important; }
+  /* Ventanas emergentes al presentar: se agrandan como la diapositiva (ver fitPresentOverlays) */
+  html.presenting #evalModal .unlock-modal-card { max-height: none; overflow: visible; max-width: 900px; }
+  html.presenting #evalModal .eval-activities { grid-template-columns: 1fr 1fr; }
+  html.presenting #lightbox-img { height: 78vh; width: auto; max-width: 92vw !important; max-height: 78vh !important; }
   .present-ribbon {
     position: absolute; left: 0; right: 0; top: 0; height: 44px; z-index: 2;
     display: flex; align-items: center; gap: .6rem; padding: 0 40px;
@@ -2875,6 +2919,10 @@ function setProjectorScale(index) {
   document.documentElement.style.setProperty('--pm-scale', scale);
   const bar = document.getElementById('projectorBar');
   if (bar) bar.style.zoom = String(1 / scale); // los controles conservan su tamaño
+  const nav = document.querySelector('nav');
+  if (nav) nav.style.zoom = String(1 / scale); // la barra de navegación conserva su tamaño: cabe siempre
+  updateProjectorTables();
+  fitProjectorLayout();
 }
 
 function setProjectorMode(on) {
@@ -2884,6 +2932,10 @@ function setProjectorMode(on) {
     setProjectorScale(projectorScaleIndex);
   }
   document.documentElement.classList.toggle('projector', on);
+  const nav = document.querySelector('nav');
+  if (nav && !on) nav.style.zoom = '';
+  updateProjectorTables();
+  fitProjectorLayout();
   const bar = document.getElementById('projectorBar');
   if (bar) bar.hidden = !on;
   try {
@@ -2968,7 +3020,7 @@ function layoutConstraints(root, base) {
   const text = [];
   const edges = [];
   const shadows = [];
-  const walk = (el, clipTop, clipBottom) => {
+  const walk = (el, clipTop, clipBottom, inBox) => {
     if (el.nodeType !== 1 || ['SCRIPT', 'STYLE'].includes(el.tagName)) return;
     const isSvgChild = el.closest('svg') && el.tagName.toLowerCase() !== 'svg';
     if (isSvgChild) return;
@@ -2978,6 +3030,7 @@ function layoutConstraints(root, base) {
     const top = Math.max(r.top - base, clipTop);
     const bottom = Math.min(r.bottom - base, clipBottom);
     let childTop = clipTop, childBottom = clipBottom;
+    let childInBox = inBox;
     if (el !== root && cs.overflow !== 'visible') {
       childTop = Math.max(clipTop, r.top - base);
       childBottom = Math.min(clipBottom, r.bottom - base);
@@ -2988,7 +3041,8 @@ function layoutConstraints(root, base) {
       // Títulos y etiquetas se mantienen junto a su contenido (no quedan al final de una diapositiva)
       const isHeading = /^H[1-6]$/.test(el.tagName) ||
         (hasText && cs.textTransform === 'uppercase' && parseFloat(cs.letterSpacing) > 0.5 && bottom - top < 40);
-      if (isHeading) hard.push([top, bottom + 70]);
+      // (las etiquetas dentro de una tarjeta no cuentan: la tarjeta entera ya se mantiene unida)
+      if (isHeading && !inBox) hard.push([top, bottom + 70]);
       if (cs.boxShadow !== 'none') {
         const [up, down] = shadowExtent(cs);
         shadows.push({ el, top: r.top - base, bottom: r.bottom - base, vTop: r.top - base - up, vBottom: r.bottom - base + down });
@@ -2998,14 +3052,29 @@ function layoutConstraints(root, base) {
         cs.backgroundImage !== 'none' || cs.boxShadow !== 'none';
       const decorative = (cs.position === 'absolute' || cs.pointerEvents === 'none') && !el.textContent.trim() && !el.querySelector('img');
       if (isBox && !decorative && r.width >= 40 && bottom - top >= 24) {
-        if (bottom - top <= usableHeight() - 8) hard.push([top, bottom]);
+        // Cabecera pegada a su cuerpo (p. ej. banda "Hard Skills" + su lista): nunca se separan
+        const next = el.nextElementSibling;
+        if (next && next.nodeType === 1) {
+          const rn = next.getBoundingClientRect();
+          const ncs = getComputedStyle(next);
+          const nbg = parseRgba(ncs.backgroundColor);
+          const nextIsBox = (nbg && nbg.a > 0.02) || parseFloat(ncs.borderBottomWidth) > 0 || ncs.backgroundImage !== 'none';
+          // Solo la forma "tarjeta en dos partes": arriba redondeada solo arriba, abajo solo abajo
+          const attached = parseFloat(cs.borderTopLeftRadius) > 0 && parseFloat(cs.borderBottomLeftRadius) === 0 &&
+            parseFloat(ncs.borderTopLeftRadius) === 0 && parseFloat(ncs.borderBottomLeftRadius) > 0;
+          if (nextIsBox && attached && Math.abs(rn.top - r.bottom) <= 2 && Math.abs(rn.left - r.left) <= 2 && rn.height > 0) {
+            const nTop = rn.top - base, nBottom = rn.bottom - base;
+            hard.push([top, nBottom - top <= usableHeight() - 8 ? nBottom : Math.min(nBottom, nTop + 160)]);
+          }
+        }
+        if (bottom - top <= usableHeight() - 8) { hard.push([top, bottom]); childInBox = true; }
         // Panel alto que sí se parte: no mostrar solo su cabecera ni solo su pie
         else edges.push([top + 0.5, top + Math.min(160, (bottom - top) / 3)], [bottom - 60, bottom - 0.5]);
       }
     }
-    if (childBottom > childTop) [...el.children].forEach(ch => walk(ch, childTop, childBottom));
+    if (childBottom > childTop) [...el.children].forEach(ch => walk(ch, childTop, childBottom, childInBox));
   };
-  walk(root, -Infinity, Infinity);
+  walk(root, -Infinity, Infinity, false);
   return { hard, text, edges, shadows };
 }
 
@@ -3066,6 +3135,7 @@ function splitBlock(top, bottom, c) {
 // Si no hay corte limpio: (1) reducir levemente el tramo para que quepa entero (hasta 80%),
 // (2) cortar a través de una caja pero nunca de un texto, (3) último recurso: el límite.
 const PRESENT_MIN_SCALE = 0.8;
+const PRESENT_COVER_MIN_SCALE = 0.6;
 
 function splitBlockGreedy(top, bottom, c) {
   const candidates = cutCandidates(c).sort((a, b) => b - a);
@@ -3106,6 +3176,7 @@ function splitBlockGreedy(top, bottom, c) {
 }
 
 let presentShadowBoxes = [];
+let presentAdaptedWidth = 0;
 
 // La página se trata como un flujo continuo: los límites entre secciones son cortes preferidos;
 // si algo los cruza (márgenes negativos, elementos superpuestos) se usa el corte limpio más cercano.
@@ -3134,8 +3205,13 @@ function buildSlides(page) {
       : nearestCut(b.bottom, b.bottom - 150, b.bottom);
     start = segEnd;
     if (segEnd - segStart < 40) return;
+    // Portadas (secciones de pantalla completa): siempre en una sola diapositiva, reducida si hace falta
+    const isCover = b.block.matches('#hero, section[style*="min-height:100vh"]') ||
+      b.block.querySelector(':scope > #hero, :scope > section[style*="min-height:100vh"]');
+    const coverScale = presentCanvas.h / (segEnd - segStart);
     // Sin contenido visible (solo fondo o márgenes): no genera diapositiva
-    const pieces = splitBlock(segStart, segEnd, c)
+    const pieces = (isCover && coverScale >= PRESENT_COVER_MIN_SCALE
+      ? [[segStart, segEnd, Math.min(1, coverScale)]] : splitBlock(segStart, segEnd, c))
       .filter(([a, z]) => c.text.some(([ta, tz]) => Math.min(tz, z) - Math.max(ta, a) > 8));
     const title = sectionTitle(b.block) || (slides.length ? slides[slides.length - 1].title : '');
     pieces.forEach(([a, z, scale], k) => slides.push({ block: b.block, top: a, height: z - a, scale: scale || 1, part: k + 1, parts: pieces.length, title }));
@@ -3148,6 +3224,7 @@ function fitPresentWindow() {
   win.style.width = presentCanvas.w + 'px';
   win.style.height = presentCanvas.h + 'px';
   win.style.setProperty('--present-h', presentCanvas.h + 'px');
+  win.style.setProperty('--pv', (presentCanvas.w / 100) + 'px');
   if (presentPageEl) presentPageEl.style.width = presentCanvas.w + 'px';
   const scale = Math.min(window.innerWidth / presentCanvas.w, window.innerHeight / presentCanvas.h);
   win.style.transform = `translate(-50%, -50%) scale(${scale})`;
@@ -3199,21 +3276,148 @@ function applyMinFont(page) {
   });
 }
 
-// Cuadrículas de 3 columnas con 4 tarjetas: una sola fila, para que ninguna quede sola.
-function rebalanceGrids(page) {
-  page.querySelectorAll('*').forEach(el => {
-    const cs = getComputedStyle(el);
-    if (cs.display !== 'grid' || el.children.length !== 4) return;
-    if (cs.gridTemplateColumns.split(' ').filter(Boolean).length !== 3) return;
-    el.dataset.pmGrid = el.style.gridTemplateColumns || '';
-    el.style.gridTemplateColumns = 'repeat(4, minmax(0, 1fr))';
+// ─── Adaptación del diseño al tamaño del lienzo (A+ / A−) ─────────
+// Al agrandar, el lienzo se hace más angosto: las cuadrículas cuyas tarjetas ya no caben pasan a
+// menos columnas (nunca se recorta ni se encima un texto) y los paneles estirados más altos que
+// una diapositiva vuelven a su alto natural. Todo se restaura al salir o al cambiar de tamaño.
+const PRESENT_MIN_TABLE_COL = 130; // px por columna; por debajo, la tabla se muestra como tarjetas
+
+function gridColumnCount(el) {
+  return getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length;
+}
+
+// ¿Algún texto de la cuadrícula no cabe en su caja?
+function gridCramped(grid) {
+  if (grid.scrollWidth > grid.clientWidth + 1) return true;
+  for (const ch of grid.children) {
+    if (ch.scrollWidth > ch.clientWidth + 1) return true;
+    for (const d of ch.querySelectorAll('*')) {
+      if (d.clientWidth && d.scrollWidth > d.clientWidth + 1 &&
+          [...d.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) return true;
+    }
+  }
+  return false;
+}
+
+function setGridColumns(el, value) {
+  if (el.dataset.pmGrid === undefined) el.dataset.pmGrid = el.style.gridTemplateColumns || '';
+  el.style.gridTemplateColumns = value;
+}
+
+// Muestra una tabla ancha como tarjetas (una por fila, con la etiqueta de cada dato) si sus columnas
+// quedarían más angostas que PRESENT_MIN_TABLE_COL con el ancho disponible.
+function setTableCards(table, width) {
+  const heads = [...table.querySelectorAll('thead th')].map(th => th.textContent.replace(/\s+/g, ' ').trim());
+  const cards = heads.length >= 6 && width / heads.length < PRESENT_MIN_TABLE_COL;
+  table.classList.toggle('pm-table-cards', cards);
+  if (cards) table.querySelectorAll('tbody tr').forEach(tr => [...tr.children].forEach((td, i) => { td.dataset.label = heads[i] || ''; }));
+}
+
+// Modo proyector: con el zoom, el ancho útil de la página es menor; las tablas anchas pasan a tarjetas.
+function updateProjectorTables() {
+  if (presenting) return;
+  const scale = projectorOn ? PROJECTOR_SCALES[projectorScaleIndex] : 1;
+  const width = Math.min(window.innerWidth / scale, 1200) - 80;
+  document.querySelectorAll('table').forEach(table => {
+    if (projectorOn) setTableCards(table, width);
+    else table.classList.remove('pm-table-cards');
   });
 }
 
-function restoreGrids(page) {
+// Títulos de una sola palabra larga (p. ej. "TECNOLOGÍA") que no caben: se reducen un poco (hasta
+// el 75%, nunca bajo la letra mínima) antes de quitar columnas, para conservar la fila completa.
+function shrinkWideWords(grid) {
+  for (const d of grid.querySelectorAll('*')) {
+    if (!d.clientWidth || d.scrollWidth <= d.clientWidth + 1) continue;
+    if (![...d.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) continue;
+    const size = parseFloat(getComputedStyle(d).fontSize);
+    const fit = Math.floor(size * (d.clientWidth / d.scrollWidth) * 0.97 * 10) / 10;
+    if (fit < size * 0.75 || fit < PRESENT_MIN_FONT) continue; // habría que reducirlo demasiado
+    if (d.dataset.pmShrink === undefined) d.dataset.pmShrink = d.style.fontSize || '';
+    d.style.fontSize = fit + 'px';
+  }
+}
+
+function restoreShrink(root) {
+  root.querySelectorAll('[data-pm-shrink]').forEach(d => { d.style.fontSize = d.dataset.pmShrink; delete d.dataset.pmShrink; });
+}
+
+// Quita columnas a una cuadrícula mientras algún texto no quepa en su tarjeta.
+function reduceCrampedGrid(el, cols) {
+  if (gridCramped(el)) {
+    shrinkWideWords(el);
+    if (gridCramped(el)) restoreShrink(el);
+  }
+  while (cols > 1 && gridCramped(el)) {
+    cols -= 1;
+    setGridColumns(el, `repeat(${cols}, minmax(0, 1fr))`);
+  }
+  return cols;
+}
+
+// Modo proyector: con el zoom la página es más angosta; las cuadrículas apretadas pierden columnas.
+function fitProjectorLayout() {
+  if (presenting) return;
+  restoreLayout(document.body);
+  updateProjectorTables(); // (restoreLayout también quita las tarjetas de tabla)
+  if (!projectorOn) return;
+  document.querySelectorAll('body > :not(.page), .page.active').forEach(root => {
+    root.querySelectorAll('*').forEach(el => {
+      const cs = getComputedStyle(el);
+      if (cs.display === 'grid' || cs.display === 'inline-grid') reduceCrampedGrid(el, gridColumnCount(el));
+    });
+  });
+}
+
+function adaptLayout(page) {
+  restoreLayout(page);
+  page.querySelectorAll('table').forEach(table => setTableCards(table, table.parentElement.clientWidth));
+  page.querySelectorAll('*').forEach(el => {
+    const cs = getComputedStyle(el);
+    if (cs.display !== 'grid' && cs.display !== 'inline-grid') return;
+    let cols = gridColumnCount(el);
+    // 3 columnas con 4 tarjetas: una sola fila de 4, para que ninguna quede sola (si caben)
+    if (cols === 3 && el.children.length === 4) {
+      setGridColumns(el, 'repeat(4, minmax(0, 1fr))');
+      if (gridCramped(el)) setGridColumns(el, el.dataset.pmGrid);
+      else cols = 4;
+    }
+    cols = reduceCrampedGrid(el, cols);
+    // Columnas con un panel más alto que una diapositiva (p. ej. panel + contenido, o dos listas
+    // lado a lado): no hay un corte horizontal que respete todas las columnas, así que se apilan.
+    if (cols > 1 && [...el.children].some(ch => ch.getBoundingClientRect().height > usableHeight() - 8)) {
+      setGridColumns(el, 'minmax(0, 1fr)');
+    }
+  });
+  // Paneles estirados por su fila (p. ej. la columna izquierda de una sección de dos columnas):
+  // si son más altos que la diapositiva, se dejan en su alto natural para no partirlos.
+  page.querySelectorAll('*').forEach(el => {
+    const parent = el.parentElement;
+    if (!parent || parent.children.length < 2) return;
+    const pcs = getComputedStyle(parent);
+    const row = pcs.display.includes('grid') || (pcs.display.includes('flex') && !pcs.flexDirection.startsWith('column'));
+    if (!row || el.getBoundingClientRect().height <= usableHeight() - 8) return;
+    const before = el.getBoundingClientRect().height;
+    el.dataset.pmSelf = el.style.alignSelf || '';
+    el.style.alignSelf = 'start';
+    if (el.getBoundingClientRect().height >= before - 1) {
+      el.style.alignSelf = el.dataset.pmSelf;
+      delete el.dataset.pmSelf;
+    }
+  });
+  presentAdaptedWidth = presentCanvas.w;
+}
+
+function restoreLayout(page) {
+  restoreShrink(page);
+  page.querySelectorAll('table.pm-table-cards').forEach(table => table.classList.remove('pm-table-cards'));
   page.querySelectorAll('[data-pm-grid]').forEach(el => {
     el.style.gridTemplateColumns = el.dataset.pmGrid;
     delete el.dataset.pmGrid;
+  });
+  page.querySelectorAll('[data-pm-self]').forEach(el => {
+    el.style.alignSelf = el.dataset.pmSelf;
+    delete el.dataset.pmSelf;
   });
 }
 
@@ -3332,7 +3536,7 @@ function startPresentation(fromStart) {
   win.style.transform = 'none';
   page.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
   applyMinFont(page);
-  rebalanceGrids(page);
+  adaptLayout(page);
   presentSlides = buildSlides(page);
   watchPresentLayout(page);
   presentIndex = Math.max(0, presentSlides.findIndex(sl => sl.block === currentBlock));
@@ -3357,7 +3561,8 @@ function stopPresentation(keepFullscreen) {
   page.style.clipPath = '';
   page.style.width = '';
   restoreMinFont(page);
-  restoreGrids(page);
+  restoreLayout(page);
+  fitPresentOverlays();
   page.querySelectorAll('.pm-noshadow').forEach(el => el.classList.remove('pm-noshadow'));
   presentPlaceholder.replaceWith(page);
   presentPlaceholder = null;
@@ -3365,6 +3570,8 @@ function stopPresentation(keepFullscreen) {
   document.getElementById('presentStage').hidden = true;
   document.documentElement.classList.remove('presenting');
   document.documentElement.classList.toggle('projector', projectorOn);
+  updateProjectorTables();
+  fitProjectorLayout();
   if (!keepFullscreen && document.fullscreenElement) {
     presentFullscreen = false;
     document.exitFullscreen().catch(() => {});
@@ -3383,6 +3590,7 @@ function relayoutPresentation(focusEl) {
   win.style.transform = 'none';
   page.style.transform = '';
   page.style.clipPath = '';
+  if (presentAdaptedWidth !== presentCanvas.w) adaptLayout(page);
   presentSlides = buildSlides(page);
   let index = -1;
   if (focusEl) {
@@ -3456,6 +3664,30 @@ function wakePresentControls() {
   presentIdleTimer = setTimeout(() => controls.classList.add('idle'), 2500);
 }
 
+// Modales de conceptos y de actividades: al presentar se muestran con el mismo aumento que la
+// diapositiva (sin salirse de la pantalla), para que su letra sea tan legible como la del lienzo.
+function fitPresentOverlays() {
+  const boxes = [document.querySelector('#modalOverlay .modal-box'), document.querySelector('#evalModal .unlock-modal-card')];
+  boxes.forEach(box => {
+    if (!box) return;
+    box.style.zoom = '';
+    if (!presenting) return;
+    const w = box.offsetWidth, h = box.offsetHeight; // sin la animación de entrada (transform)
+    if (!w || !h) return;
+    const stage = Math.min(window.innerWidth / presentCanvas.w, window.innerHeight / presentCanvas.h);
+    const zoom = Math.min(stage, (window.innerWidth * 0.92) / w, (window.innerHeight * 0.92) / h);
+    if (zoom > 1) box.style.zoom = String(zoom);
+  });
+}
+
+function watchPresentOverlays() {
+  const observer = new MutationObserver(() => requestAnimationFrame(fitPresentOverlays));
+  ['modalOverlay', 'evalModal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) observer.observe(el, { attributes: true, attributeFilter: ['class'], subtree: true, childList: true, characterData: true });
+  });
+}
+
 function presentOverlayOpen() {
   return !!document.querySelector('#modalOverlay.open, .unlock-modal-overlay.active') ||
     (document.getElementById('lightbox-overlay') || {}).style?.display === 'flex';
@@ -3465,7 +3697,13 @@ function presentOverlayOpen() {
 function handlePresentClick(e) {
   if (!presenting || presentOverlayOpen()) return;
   const card = e.target.closest('.exp-card');
-  if (card) { setTimeout(() => relayoutPresentation(card), 700); return; }
+  if (card) {
+    const index = presentIndex;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (presenting && presentIndex === index) relayoutPresentation(card);
+    }));
+    return;
+  }
   if (e.target.closest('[onclick]:not(#presentStage), a, button, input')) return;
   if (e.clientX < window.innerWidth / 2) presentPrev();
   else presentNext();
@@ -3514,10 +3752,19 @@ document.addEventListener('DOMContentLoaded', () => {
   initPalette();
   initProjectorMode();
   initPresentationFromUrl();
+  watchPresentOverlays();
 });
 
 function goToModule(num) {
   closeModuleMenu();
+  if (presenting) {
+    // Desde una diapositiva: se presenta el otro módulo (si ya está disponible)
+    if (!isModuleUnlocked(num)) { showLockedToast(num); return; }
+    stopPresentation(true);
+    navigateToModuleDirect(num);
+    setTimeout(() => startPresentation(true), 700);
+    return;
+  }
   if (isModuleUnlocked(num)) {
     navigateToModuleDirect(num);
     return;
@@ -3545,7 +3792,7 @@ function navigateToModuleDirect(num) {
     if (target) {
       target.style.opacity = '0';
       target.classList.add('active');
-      if (projectorOn) applyProjectorTheme(target);
+      if (projectorOn) { applyProjectorTheme(target); fitProjectorLayout(); }
       requestAnimationFrame(() => {
         target.style.transition = 'opacity .35s ease';
         target.style.opacity = '1';
@@ -3578,7 +3825,7 @@ function goToBiblio() {
     if (target) {
       target.style.opacity = '0';
       target.classList.add('active');
-      if (projectorOn) applyProjectorTheme(target);
+      if (projectorOn) { applyProjectorTheme(target); fitProjectorLayout(); }
       requestAnimationFrame(() => {
         target.style.transition = 'opacity .35s ease';
         target.style.opacity = '1';

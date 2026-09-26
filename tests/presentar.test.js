@@ -67,15 +67,17 @@ function textosDeLaPagina(page, n) {
 
       const info = await page.evaluate(() => ({
         activo: document.documentElement.classList.contains('presenting'),
-        slides: presentSlides.map((s) => ({ top: s.top, height: s.height, escala: s.scale || 1, cut: s.part > 1 })),
+        slides: presentSlides.map((s) => ({ top: s.top, height: s.height, escala: s.scale || 1, cut: s.part > 1,
+          portada: s.block.matches('#hero, section[style*="min-height:100vh"]') && s.parts === 1 })),
         lienzo: typeof presentCanvas !== 'undefined' ? presentCanvas : { w: 1366, h: 768 },
         paginaEnEscenario: !!document.querySelector('#presentWindow .page.active')
       }));
       check(info.activo && info.paginaEnEscenario, `página ${n}: entra en modo presentación (${info.slides.length} diapositivas)`);
       const ALTO = info.lienzo.h;
       check(info.slides.every((s) => s.height * s.escala <= ALTO + 1), `página ${n}: ninguna diapositiva supera el lienzo de ${ALTO}px`);
+      // Contenido: como mucho al 80%. Portadas: hasta el 60%, para que siempre sean una sola diapositiva.
       const reducidas = info.slides.filter((s) => s.escala < 1);
-      check(reducidas.every((s) => s.escala >= 0.8 - 1e-6), `página ${n}: ninguna diapositiva se reduce a menos del 80% (${reducidas.length} reducidas levemente)`);
+      check(reducidas.every((s) => s.escala >= (s.portada ? 0.6 : 0.8) - 1e-6), `página ${n}: ninguna diapositiva se reduce a menos del 80% (portada: 60%) (${reducidas.length} reducidas levemente)`);
 
       // Cobertura: cada texto cabe completo en alguna diapositiva
       const textos = await textosDeLaPagina(page, n);

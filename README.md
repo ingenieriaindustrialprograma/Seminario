@@ -50,13 +50,21 @@ En `Seminario_final.html` el contenido protegido está entre los marcadores
 
 - **▶ Presentar** (o `/?presentar`): convierte el módulo abierto en diapositivas 16:9 con letra
   grande. Flechas, Av Pág/Re Pág o espacio para avanzar; **Esc** para salir.
-- **A+ / A−** (o teclas `+` / `-`): agrandan o reducen todo el contenido de la diapositiva.
+- **A+ / A−** (o teclas `+` / `-`): agrandan o reducen todo el contenido de la diapositiva. Al
+  agrandar, el diseño se reacomoda solo: las cuadrículas apretadas pasan a menos columnas, las
+  secciones de dos columnas muy altas se apilan, la tabla de 9 columnas se muestra como tarjetas y
+  cada portada ocupa siempre una sola diapositiva. Ningún texto ni tarjeta queda partido.
+- Las tarjetas desplegables, los modales, la ventana de actividades y las imágenes funcionan dentro
+  de las diapositivas; los modales se agrandan igual que la diapositiva.
 - **🎨 Paleta** (o tecla **P**): elige entre Verde, Azul, Vino, Violeta y Alto contraste (fondo
   claro y letra oscura; todos los textos cumplen contraste ≥ 4.5:1). La elección se recuerda.
   **T** vuelve al diseño original oscuro.
 - **🖥️ Proyector** (o `/?proyector`): la página normal con fondos claros, zoom y la misma paleta.
 
-Pruebas: `npm run test:presentar` (cortes, cobertura de textos, navegación y contraste por paleta).
+Pruebas (`npm test` corre todas):
+- `npm run test:presentar`: cortes, cobertura de textos, navegación y contraste por paleta.
+- `npm run test:tamanos`: los 6 tamaños de A+/A− y el modo proyector con zoom máximo.
+- `npm run test:interactivo`: clic real en cada tarjeta, modal, ventana e imagen durante la presentación.
 
 ## Probar localmente
 

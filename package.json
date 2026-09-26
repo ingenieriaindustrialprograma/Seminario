@@ -5,7 +5,10 @@
   "scripts": {
     "construir": "node scripts/construir.js",
     "start": "node scripts/construir.js && node dev-server.js",
-    "test:presentar": "node tests/presentar.test.js"
+    "test:presentar": "node tests/presentar.test.js",
+    "test:tamanos": "node tests/tamanos.test.js",
+    "test:interactivo": "node tests/interactivo.test.js",
+    "test": "node tests/presentar.test.js && node tests/tamanos.test.js && node tests/interactivo.test.js"
   },
   "keywords": [
     "seminario",
