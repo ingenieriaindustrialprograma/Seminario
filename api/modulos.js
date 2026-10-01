@@ -1,6 +1,6 @@
 // Función serverless de Vercel: GET /api/modulos
 //
-// Entrega el contenido de los módulos III–VI SOLO cuando llega su fecha de apertura, según
+// Entrega el contenido de los módulos II–VI SOLO cuando llega su fecha de apertura, según
 // el reloj del servidor en hora de Colombia. El estudiante no puede adelantarse cambiando la
 // hora de su equipo: el contenido no está en la página pública y solo sale de aquí.
 //
@@ -11,6 +11,7 @@ const crypto = require('crypto');
 
 // Fechas de apertura en hora de Colombia (UTC-5). Para abrir a otra hora, cambia 00:00:00.
 const CALENDARIO = {
+  2: '2026-10-03T00:00:00-05:00',
   3: '2026-10-03T00:00:00-05:00',
   4: '2026-10-03T00:00:00-05:00',
   5: '2026-10-10T00:00:00-05:00',
@@ -20,6 +21,7 @@ const CALENDARIO = {
 // Rutas literales para que Vercel empaquete estos archivos junto con la función.
 // Se generan con "npm run construir".
 const CONTENIDO = {
+  2: () => require('./_contenido/modulo-2.json'),
   3: () => require('./_contenido/modulo-3.json'),
   4: () => require('./_contenido/modulo-4.json'),
   5: () => require('./_contenido/modulo-5.json'),

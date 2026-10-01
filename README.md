@@ -6,14 +6,15 @@ Sitio del seminario, publicado en Vercel: https://seminario-wine.vercel.app
 
 | Módulos | Se habilitan |
 |---|---|
-| I y II | Siempre disponibles |
-| III y IV | Sábado 3 de octubre de 2026, 00:00 (hora de Colombia) |
+| I | Siempre disponible |
+| II, III y IV | Sábado 3 de octubre de 2026, 00:00 (hora de Colombia) |
 | V y VI | Sábado 10 de octubre de 2026, 00:00 (hora de Colombia) |
 
 - Los estudiantes no usan contraseñas: cada módulo se abre solo en su fecha.
 - La fecha la decide el **servidor** (`api/modulos.js`), no el computador del estudiante. El contenido
-  de los módulos III–VI no viene en la página pública: solo lo entrega `/api/modulos` cuando llega su
+  de los módulos II–VI no viene en la página pública: solo lo entrega `/api/modulos` cuando llega su
   fecha. Por eso cambiar la hora del equipo, ver el código fuente o usar la consola no sirve para adelantarse.
+- La bibliografía completa (todos los módulos) es pública desde el inicio.
 - Las descargas siguen la misma regla: solo se descargan módulos ya habilitados, y la descarga del
   seminario completo incluye únicamente lo habilitado hasta ese día.
 
@@ -31,7 +32,7 @@ Opcionalmente se puede definir otra clave en Vercel → Settings → Environment
 | Archivo | Qué es |
 |---|---|
 | `Seminario_final.html` | **Fuente**: el seminario completo. Aquí se edita. No se publica. |
-| `public/index.html` | Generado: la página pública, sin el contenido de III–VI. |
+| `public/index.html` | Generado: la página pública, sin el contenido de II–VI. |
 | `api/_contenido/modulo-N.json` | Generado: contenido protegido de cada módulo. |
 | `api/modulos.js` | Función de Vercel que entrega los módulos según la fecha (`CALENDARIO`). |
 | `scripts/construir.js` | Genera los archivos anteriores a partir de la fuente. |

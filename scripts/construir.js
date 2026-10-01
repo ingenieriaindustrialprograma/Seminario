@@ -1,12 +1,12 @@
 // Genera la versión publicable del seminario a partir de Seminario_final.html:
-//   public/index.html              → página pública SIN el contenido de los módulos III–VI
+//   public/index.html              → página pública SIN el contenido de los módulos II–VI
 //   api/_contenido/modulo-N.json   → contenido protegido; solo lo entrega /api/modulos en su fecha
 //
 // Uso: npm run construir   (cada vez que edites Seminario_final.html, antes de hacer commit)
 //
 // El contenido protegido se delimita en Seminario_final.html con los marcadores
 //   <!-- PROTEGIDO:INICIO modulo-N pagina -->        ... <!-- PROTEGIDO:FIN modulo-N pagina -->
-//   <!-- PROTEGIDO:INICIO modulo-N bibliografia -->  ... <!-- PROTEGIDO:FIN modulo-N bibliografia -->
+// La bibliografía es pública (no lleva marcadores).
 // Si falta un marcador o algo protegido quedara en la página pública, el script se detiene
 // sin escribir nada.
 
@@ -17,13 +17,11 @@ const RAIZ = path.join(__dirname, '..');
 const FUENTE = path.join(RAIZ, 'Seminario_final.html');
 const SALIDA_PUBLICA = path.join(RAIZ, 'public', 'index.html');
 const DIR_CONTENIDO = path.join(RAIZ, 'api', '_contenido');
-const MODULOS_PROTEGIDOS = [3, 4, 5, 6];
+const MODULOS_PROTEGIDOS = [2, 3, 4, 5, 6];
 
 const AVISO_GENERADO =
   '<!-- ARCHIVO GENERADO por scripts/construir.js a partir de Seminario_final.html. ' +
   'No lo edites aquí: edita Seminario_final.html y ejecuta "npm run construir". -->';
-const RESERVA_BIBLIOGRAFIA =
-  '<div class="bib-pendiente">🔒 Las referencias de este módulo se publicarán junto con el módulo, en la fecha de su sesión.</div>\n';
 
 function fallar(mensaje) {
   console.error('\n✗ ' + mensaje + '\n  No se generó ningún archivo.\n');
@@ -63,10 +61,7 @@ function construir() {
       `<!-- Contenido del módulo ${num}: lo entrega /api/modulos a partir de su fecha de apertura. -->\n`);
     html = pagina.html.replace(aperturaPagina, `<div id="page-${num}" class="page" data-contenido="pendiente">`);
 
-    const bibliografia = extraerBloque(html, num, 'bibliografia', RESERVA_BIBLIOGRAFIA);
-    html = bibliografia.html;
-
-    protegidos.push({ num, pagina: pagina.contenido, bibliografia: bibliografia.contenido });
+    protegidos.push({ num, pagina: pagina.contenido });
   }
 
   // ── Verificaciones: nada protegido puede quedar en la página pública ──
@@ -76,7 +71,7 @@ function construir() {
   if (/<script[^>]*data-modales-modulo=/.test(html)) {
     fallar('Quedaron datos de modales de módulos protegidos en la página pública.');
   }
-  for (const { num, pagina, bibliografia } of protegidos) {
+  for (const { num, pagina } of protegidos) {
     const vacia = new RegExp(`<div id="page-${num}" class="page" data-contenido="pendiente">\\s*(<!--[^]*?-->\\s*)?</div><!-- /page-${num} -->`);
     if (!vacia.test(html)) fallar(`La página del módulo ${num} no quedó vacía en la versión pública.`);
     if (!pagina.includes(`data-modales-modulo="${num}"`)) {
@@ -97,7 +92,6 @@ function construir() {
         fallar(`Los datos del modal protegido "${clave}" (módulo ${num}) siguen en la página pública.`);
       }
     }
-    if (!bibliografia.trim()) fallar(`La bibliografía del módulo ${num} quedó vacía.`);
   }
 
   // ── Escritura (solo si todo lo anterior pasó) ──
@@ -105,15 +99,15 @@ function construir() {
   fs.mkdirSync(path.dirname(SALIDA_PUBLICA), { recursive: true });
   fs.mkdirSync(DIR_CONTENIDO, { recursive: true });
   fs.writeFileSync(SALIDA_PUBLICA, html);
-  for (const { num, pagina, bibliografia } of protegidos) {
+  for (const { num, pagina } of protegidos) {
     fs.writeFileSync(path.join(DIR_CONTENIDO, `modulo-${num}.json`),
-      JSON.stringify({ modulo: num, pagina, bibliografia }) + '\n');
+      JSON.stringify({ modulo: num, pagina }) + '\n');
   }
 
   const kb = (bytes) => Math.round(bytes / 1024) + ' KB';
   console.log('✓ public/index.html (' + kb(Buffer.byteLength(html)) + ') — sin el contenido de los módulos ' + MODULOS_PROTEGIDOS.join(', '));
-  for (const { num, pagina, bibliografia } of protegidos) {
-    console.log(`✓ api/_contenido/modulo-${num}.json (${kb(Buffer.byteLength(pagina) + Buffer.byteLength(bibliografia))})`);
+  for (const { num, pagina } of protegidos) {
+    console.log(`✓ api/_contenido/modulo-${num}.json (${kb(Buffer.byteLength(pagina))})`);
   }
 }
 
