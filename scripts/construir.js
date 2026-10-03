@@ -48,9 +48,24 @@ function extraerBloque(html, num, parte, reemplazo) {
   };
 }
 
+// Incrusta las fotos del modulo II en el contenido protegido. Asi la pagina
+// descargada funciona sin archivos externos y public/ no expone el modulo.
+function incrustarImagenesModulo2(pagina) {
+  const rutas = [...new Set(pagina.match(new RegExp('assets/media/modulo2/[a-z0-9_]+[.]webp', 'g')) || [])];
+  if (!rutas.length) fallar('No se encontraron imagenes del modulo II para incrustar.');
+  for (const ruta of rutas) {
+    const archivo = path.join(RAIZ, ruta);
+    if (!fs.existsSync(archivo)) fallar('Falta la imagen del modulo II: ' + ruta);
+    const dato = 'data:image/webp;base64,' + fs.readFileSync(archivo).toString('base64');
+    pagina = pagina.split(ruta).join(dato);
+  }
+  return pagina;
+}
+
 function construir() {
   if (!fs.existsSync(FUENTE)) fallar('No se encontró Seminario_final.html en la raíz del proyecto.');
-  let html = fs.readFileSync(FUENTE, 'utf8');
+  // Normaliza saltos de linea antes de extraer bloques; Windows usa CRLF.
+  let html = fs.readFileSync(FUENTE, 'utf8').replace(/\r\n/g, '\n');
   const protegidos = [];
 
   for (const num of MODULOS_PROTEGIDOS) {
@@ -61,7 +76,7 @@ function construir() {
       `<!-- Contenido del módulo ${num}: lo entrega /api/modulos a partir de su fecha de apertura. -->\n`);
     html = pagina.html.replace(aperturaPagina, `<div id="page-${num}" class="page" data-contenido="pendiente">`);
 
-    protegidos.push({ num, pagina: pagina.contenido });
+    protegidos.push({ num, pagina: num === 2 ? incrustarImagenesModulo2(pagina.contenido) : pagina.contenido });
   }
 
   // ── Verificaciones: nada protegido puede quedar en la página pública ──
